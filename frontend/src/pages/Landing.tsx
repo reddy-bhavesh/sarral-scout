@@ -9,6 +9,7 @@ import {
     TrendingUp, Rocket, BarChart, CheckCircle2
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import NetworkGrid from '../components/NetworkGrid';
 
 const Landing = () => {
     const navigate = useNavigate();
@@ -16,33 +17,7 @@ const Landing = () => {
     const { theme, toggleTheme } = useTheme();
     const { scrollY } = useScroll();
     const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
-    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const [openFaq, setOpenFaq] = useState<number | null>(null);
-    
-    // Optimized cursor tracking with RequestAnimationFrame for 60fps smooth updates
-    useEffect(() => {
-        let mouseX = 0;
-        let mouseY = 0;
-        let rafId: number;
-
-        const handleMouseMove = (e: MouseEvent) => {
-            mouseX = e.clientX;
-            mouseY = e.clientY;
-        };
-
-        const updateMousePosition = () => {
-            setMousePosition({ x: mouseX, y: mouseY });
-            rafId = requestAnimationFrame(updateMousePosition);
-        };
-        
-        window.addEventListener('mousemove', handleMouseMove);
-        rafId = requestAnimationFrame(updateMousePosition);
-        
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            cancelAnimationFrame(rafId);
-        };
-    }, []);
     
     // Parallax effect for background
     const y1 = useTransform(scrollY, [0, 300], [0, 100]);
@@ -131,17 +106,15 @@ const Landing = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-[#0B1120] text-gray-900 dark:text-white transition-colors duration-300 overflow-hidden">
-            {/* Cursor Glow Effect - GPU Accelerated */}
-            <div
-                className="fixed inset-0 pointer-events-none z-30"
-                style={{
-                    background: `radial-gradient(600px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(59, 130, 246, 0.15), transparent 40%)`,
-                    willChange: 'background',
-                }}
-            />
+            {/* Network Grid Background - Only visible in dark mode */}
+            <div className="hidden dark:block">
+                <NetworkGrid />
+            </div>
+            
+            
             
             {/* Animated Background Elements */}
-            <div className="fixed inset-0 pointer-events-none">
+            <div className="fixed inset-0 pointer-events-none z-0">
                 <motion.div
                     style={{ y: y1 }}
                     className="absolute top-20 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"
@@ -158,7 +131,8 @@ const Landing = () => {
                 />
             </div>
 
-            {/* Navigation */}
+            {/* Main Content Wrapper - Above all background effects */}
+            <div className="relative z-10">
             <motion.nav
                 initial={{ y: -100 }}
                 animate={{ y: 0 }}
@@ -1042,6 +1016,7 @@ const Landing = () => {
                     animation: gradient 3s ease infinite;
                 }
             `}</style>
+            </div>{/* End Main Content Wrapper */}
         </div>
     );
 };
