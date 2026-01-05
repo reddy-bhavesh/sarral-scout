@@ -15,8 +15,13 @@ class Settings(BaseSettings):
     KALI_PASSWORD: Optional[str] = "kali"
     KALI_KEY_PATH: Optional[str] = None
 
-    # Google Gemini API
+    # Google Gemini API (Fallback)
     GEMINI_API_KEY: Optional[str] = "API_KEY"
+
+    # Databricks API (Primary)
+    DATABRICKS_API_KEY: Optional[str] = None
+    DATABRICKS_API_BASE: Optional[str] = None
+    DATABRICKS_MODEL: str = "databricks-gemini-3-pro"
 
     class Config:
         env_file = ".env"
