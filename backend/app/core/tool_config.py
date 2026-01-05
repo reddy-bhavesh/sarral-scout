@@ -11,7 +11,7 @@ TOOL_CONFIG = {
     ],
     "Active Recon": [
         {"name": "Nmap Top 1000", "command": "nmap -sV -T4 --top-ports 1000 {target}", "parse_mode": "raw", "timeout": 900},
-        {"name": "WhatWeb", "command": "/home/kali/whatweb/whatweb {target}", "parse_mode": "raw", "timeout": 300},
+        {"name": "WhatWeb", "command": "whatweb {target}", "parse_mode": "raw", "timeout": 300},
         {"name": "WafW00f", "command": "wafw00f {target}", "parse_mode": "raw", "timeout": 300},
         {"name": "SSLScan", "command": "sslscan --no-failed --no-colour {target}", "parse_mode": "raw", "timeout": 300}
     ],
