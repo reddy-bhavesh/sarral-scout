@@ -12,3 +12,6 @@ prisma/dev.db
 prisma/dev.db-journal
 verify_optimization.py
 verify_phones.py
+test_db.py
+test_scan.py
+verify_changes.py
