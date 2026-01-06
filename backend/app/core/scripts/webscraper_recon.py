@@ -21,11 +21,11 @@ from urllib.parse import urljoin, urlparse, urldefrag
 
 import requests
 from bs4 import BeautifulSoup, Comment
+import phonenumbers
 
 # ---------- Regex Section ----------
 
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", re.IGNORECASE)
-PHONE_RE = re.compile(r"(?:\+?\d[\d\s\-\(\)]{7,}\d)", re.IGNORECASE)
 PRIVATE_IP_RE = re.compile(r"\b(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[0-1])\.\d+\.\d+)\b")
 # Fix capturing group to be non-capturing so findall returns full match
 SOCIAL_URL_RE = re.compile(r"https?://(?:www\.)?(?:linkedin\.com|github\.com|twitter\.com|x\.com|facebook\.com|instagram\.com|youtube\.com|t\.me|telegram\.me)[^\s\"'<]+", re.IGNORECASE)
@@ -36,6 +36,13 @@ SKIP_EXTENSIONS = {
     ".pdf", ".zip", ".rar", ".7z", ".gz",
     ".mp4", ".mp3", ".avi", ".mov",
 }
+
+# Regions to scan for phone numbers
+TARGET_REGIONS = [
+    "IN", "US", "GB", "AU", "NZ",           # India, USA, UK, Aus, NZ
+    "DE", "FR", "IT", "ES", "NL", "SE",     # Common EU
+    "BE", "CH", "AT", "PT", "NO", "DK", "FI", "IE", "PL" # More EU
+]
 
 OBFUSCATED_EMAIL_RE_1 = re.compile(r"([A-Za-z0-9._%+-]+)\s*\[\s*at\s*]\s*([A-Za-z0-9.-]+)\s*\[\s*dot\s*]\s*([A-Za-z]{2,})")
 OBFUSCATED_EMAIL_RE_2 = re.compile(r"([A-Za-z0-9._%+-]+)\s+at\s+([A-Za-z0-9.-]+)\s+dot\s+([A-Za-z]{2,})")
@@ -397,48 +404,37 @@ class WebScraperRecon:
             self.emails.add(email)
 
         # Phones
-        found_phones = PHONE_RE.findall(text)
-        for phone in found_phones:
-            clean_phone = re.sub(r"[\s\-\(\)]", "", phone)
-            
-            # 1. Filter out timestamps and long numbers
-            if clean_phone.isdigit():
-                # Filter out timestamps (10-13 digits, usually starting with 1)
-                if len(clean_phone) in [10, 12, 13] and clean_phone.startswith("1"):
-                    continue
+        # Phones - Using phonenumbers lib for multi-region support
+        # We iterate over regions to find valid numbers.
+        # This is more robust than a single global regex.
+        for region in TARGET_REGIONS:
+            try:
+                # None checks for international format generic matching too, 
+                # but iterating regions helps pick up local formats safely.
+                # We also add a generic pass with region=None for international (+...) format.
+                regions_to_check = [region]
                 
-                # Filter out numbers > 12 digits if they don't start with + (e.g. 14-15 digit junk)
-                # Valid international numbers without + are usually max 12 (e.g. 919876543210)
-                if len(clean_phone) > 12:
-                    continue
+                matches = phonenumbers.PhoneNumberMatcher(text, region)
+                for match in matches:
+                    if phonenumbers.is_valid_number(match.number):
+                        # Format to E.164 to standardize and deduplicate
+                        formatted = phonenumbers.format_number(
+                            match.number, phonenumbers.PhoneNumberFormat.E164
+                        )
+                        self.phones.add(formatted)
+            except:
+                pass
 
-                # 2. Filter out date-like patterns in 12-digit numbers (DDMMYYYYHHMM)
-                # If indices 4:8 are a recent year (e.g. 0402[2024]1017)
-                if len(clean_phone) == 12:
-                    middle_year = clean_phone[4:8]
-                    if middle_year.startswith("20") or middle_year.startswith("19"):
-                        # Check if it looks like a year 1990-2030
-                        try:
-                            y = int(middle_year)
-                            if 1990 <= y <= 2030:
-                                continue
-                        except:
-                            pass
-            
-            # 3. Filter out dates with separators (DD-MM-YYYY, YYYY-MM-DD)
-            if phone.count("-") >= 2 or phone.count("/") >= 2:
-                parts = re.split(r"[-/]", phone)
-                if len(parts) == 3:
-                    if all(p.isdigit() and len(p) <= 4 for p in parts):
-                        continue
-            
-            # 4. Filter year ranges (YYYY-YYYY)
-            if "-" in phone:
-                parts = phone.split("-")
-                if len(parts) == 2 and all(p.isdigit() and len(p) == 4 for p in parts):
-                    continue
-
-            self.phones.add(phone)
+        # Also generic international format check
+        try:
+            for match in phonenumbers.PhoneNumberMatcher(text, None):
+                if phonenumbers.is_valid_number(match.number):
+                    formatted = phonenumbers.format_number(
+                        match.number, phonenumbers.PhoneNumberFormat.E164
+                    )
+                    self.phones.add(formatted)
+        except:
+            pass
 
         self.internal_ips.update(PRIVATE_IP_RE.findall(text))
         
