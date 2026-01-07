@@ -31,28 +31,16 @@ const History = () => {
             
             const scanData = response.data.items;
             
-            // Enrich scans with findings count
-            const enrichedScans = scanData.map((s: any) => {
-                const counts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
-                if (s.results) {
-                    s.results.forEach((r: any) => {
-                        if (r.gemini_summary) {
-                            try {
-                                const parsed = JSON.parse(r.gemini_summary);
-                                if (parsed.vulnerabilities) {
-                                    parsed.vulnerabilities.forEach((v: any) => {
-                                        const sev = v.Severity;
-                                        if (counts[sev as keyof typeof counts] !== undefined) {
-                                            counts[sev as keyof typeof counts]++;
-                                        }
-                                    });
-                                }
-                            } catch (e) {}
-                        }
-                    });
+            // Use pre-calculated values from backend
+            const enrichedScans = scanData.map((s: any) => ({
+                ...s,
+                findings: {
+                    Critical: s.critical_count || 0,
+                    High: s.high_count || 0,
+                    Medium: s.medium_count || 0,
+                    Low: s.low_count || 0
                 }
-                return { ...s, findings: counts };
-            });
+            }));
             
             setScans(enrichedScans);
             setTotalPages(response.data.pages);
@@ -190,25 +178,11 @@ const History = () => {
                                             <div className="flex items-center gap-1">
                                                 <Clock className="w-3 h-3" />
                                                 {(() => {
-                                                    if (!scan.results || scan.results.length === 0) return '-';
-                                                    const endTimes = scan.results
-                                                        .map((r: any) => r.finished_at ? new Date(r.finished_at).getTime() : 0)
-                                                        .filter((t: number) => t > 0);
-                                                    const startTimes = scan.results
-                                                        .map((r: any) => r.started_at ? new Date(r.started_at).getTime() : 0)
-                                                        .filter((t: number) => t > 0);
-                                                    
-                                                    if (endTimes.length === 0) return '-';
-                                                    
-                                                    const end = Math.max(...endTimes);
-                                                    const start = startTimes.length > 0 ? Math.min(...startTimes) : new Date(scan.date).getTime();
-                                                    
-                                                    const diff = Math.max(0, end - start);
-                                                    const seconds = Math.round(diff / 1000);
-                                                    
-                                                    if (seconds === 0) return '< 1s';
+                                                    const seconds = scan.duration_seconds || 0;
+                                                    if (seconds === 0) return '-';
                                                     if (seconds < 60) return `${seconds}s`;
-                                                    return `${Math.round(seconds / 60)}m`;
+                                                    if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+                                                    return `${Math.round(seconds / 3600)}h ${Math.round((seconds % 3600) / 60)}m`;
                                                 })()}
                                             </div>
                                         </td>
