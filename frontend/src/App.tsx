@@ -12,6 +12,7 @@ import History from './pages/History';
 import ScanDetails from './pages/ScanDetails';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
+import BreachChecker from './pages/BreachChecker';
 
 const AnimatedRoutes = () => {
   const location = useLocation();
@@ -30,6 +31,7 @@ const AnimatedRoutes = () => {
               <Route path="/scan/:id" element={<ScanDetails />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/breach-checker" element={<BreachChecker />} />
           </Route>
         </Route>
       </Routes>
