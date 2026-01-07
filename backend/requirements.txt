@@ -18,3 +18,4 @@ beautifulsoup4
 pydantic
 google-genai
 phonenumbers
+httpx

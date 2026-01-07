@@ -15,3 +15,4 @@ verify_phones.py
 test_db.py
 test_scan.py
 verify_changes.py
+test_xon_api.py
