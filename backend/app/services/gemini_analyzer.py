@@ -1,4 +1,5 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from app.core.config import settings
 import json
 import re
@@ -8,14 +9,10 @@ import sys
 class GeminiAnalyzer:
     def __init__(self):
         if settings.GEMINI_API_KEY:
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            # Use a deterministic model, not flash
-            self.model = genai.GenerativeModel(
-                "gemini-2.0-flash",
-                system_instruction=self._system_prompt()
-            )
+            self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
+            self.model_name = "gemini-2.0-flash"
         else:
-            self.model = None
+            self.client = None
             print("Warning: GEMINI_API_KEY not set. Analysis skipped.", file=sys.stderr)
 
     # ------------------------------
@@ -108,7 +105,7 @@ Rules:
         }
         """
 
-        if not self.model:
+        if not self.client:
             return {"summary": "Gemini API Key missing", "vulnerabilities": []}
 
         sanitized_raw = self._sanitize_raw(raw_output)
@@ -157,14 +154,16 @@ STRICT RULES:
         # ------------------------------
         for attempt in range(3):
             try:
-                response = await self.model.generate_content_async(
-                    user_prompt,
-                    generation_config={
-                        "temperature": 0.0,
-                        "top_p": 1.0,
-                        "candidate_count": 1,
-                        "response_mime_type": "application/json"
-                    }
+                response = await self.client.aio.models.generate_content(
+                    model=self.model_name,
+                    contents=user_prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=self._system_prompt(),
+                        temperature=0.0,
+                        top_p=1.0,
+                        candidate_count=1,
+                        response_mime_type="application/json"
+                    )
                 )
 
                 text = response.text.strip()

@@ -16,4 +16,5 @@ pydantic-settings
 email-validator
 beautifulsoup4
 pydantic
+google-genai
 phonenumbers
