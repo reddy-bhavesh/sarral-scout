@@ -186,3 +186,111 @@ async def check_blacklist(
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(None, check_ip_blacklist, ip)
     return result
+
+
+# ============ History Endpoints ============
+
+@router.get("/history")
+async def get_history(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get the user's recent web intelligence searches (last 10)."""
+    from prisma import Prisma
+    
+    db = Prisma()
+    await db.connect()
+    
+    try:
+        history = await db.webintelhistory.find_many(
+            where={"userId": current_user.id},
+            order={"createdAt": "desc"},
+            take=10
+        )
+        return {
+            "history": [
+                {
+                    "id": h.id,
+                    "target": h.target,
+                    "mode": h.mode,
+                    "createdAt": h.createdAt.isoformat()
+                }
+                for h in history
+            ]
+        }
+    finally:
+        await db.disconnect()
+
+
+@router.post("/history")
+async def save_history(
+    target: str,
+    mode: str = "quick",
+    current_user: dict = Depends(get_current_user)
+):
+    """Save a search to the user's history."""
+    from prisma import Prisma
+    
+    db = Prisma()
+    await db.connect()
+    
+    try:
+        # Check if this target already exists for user - if so, update timestamp
+        existing = await db.webintelhistory.find_first(
+            where={
+                "userId": current_user.id,
+                "target": target
+            }
+        )
+        
+        if existing:
+            # Update the existing entry with new timestamp and mode
+            from datetime import datetime
+            await db.webintelhistory.update(
+                where={"id": existing.id},
+                data={"mode": mode, "createdAt": datetime.now()}
+            )
+        else:
+            # Create new entry
+            await db.webintelhistory.create(
+                data={
+                    "userId": current_user.id,
+                    "target": target,
+                    "mode": mode
+                }
+            )
+        
+        # Keep only last 10 entries for this user
+        all_history = await db.webintelhistory.find_many(
+            where={"userId": current_user.id},
+            order={"createdAt": "desc"}
+        )
+        
+        if len(all_history) > 10:
+            old_ids = [h.id for h in all_history[10:]]
+            await db.webintelhistory.delete_many(
+                where={"id": {"in": old_ids}}
+            )
+        
+        return {"success": True}
+    finally:
+        await db.disconnect()
+
+
+@router.delete("/history")
+async def clear_history(
+    current_user: dict = Depends(get_current_user)
+):
+    """Clear all search history for the user."""
+    from prisma import Prisma
+    
+    db = Prisma()
+    await db.connect()
+    
+    try:
+        await db.webintelhistory.delete_many(
+            where={"userId": current_user.id}
+        )
+        return {"success": True}
+    finally:
+        await db.disconnect()
+

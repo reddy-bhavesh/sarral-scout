@@ -1,6 +1,6 @@
 generator client {
-  provider = "prisma-client-py"
-  interface = "asyncio"
+  provider      = "prisma-client-py"
+  interface     = "asyncio"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
   engineType    = "binary"
 }
@@ -13,57 +13,67 @@ datasource db {
 model User {
   id            Int      @id @default(autoincrement())
   email         String   @unique
-  password_hash String?  // Optional for Microsoft SSO users
+  password_hash String? // Optional for Microsoft SSO users
   fullName      String?
   organization  String?
   createdAt     DateTime @default(now())
   isAdmin       Boolean  @default(false)
   isActive      Boolean  @default(true)
-  
+
   // Microsoft SSO fields
-  microsoft_id  String?  @unique  // Microsoft unique identifier (sub claim)
-  auth_provider String   @default("local")  // "local" or "microsoft"
+  microsoft_id  String?   @unique // Microsoft unique identifier (sub claim)
+  auth_provider String    @default("local") // "local" or "microsoft"
   last_login    DateTime?
-  
-  scans         Scan[]
+
+  scans Scan[]
 }
 
 model Scan {
-  id        Int          @id @default(autoincrement())
-  target    String
-  scan_number Int          @default(1)
-  phases    String       // JSON string or comma-separated
-  status    String       // pending, running, completed, failed
-  date      DateTime     @default(now())
-  userId    Int
-  user      User         @relation(fields: [userId], references: [id])
-  pdfPath        String?
-  duration_seconds Int      @default(0)
-  critical_count Int      @default(0)
-  high_count     Int      @default(0)
-  medium_count   Int      @default(0)
-  low_count      Int      @default(0)
-  info_count     Int      @default(0)
-  results        ScanResult[]
+  id               Int          @id @default(autoincrement())
+  target           String
+  scan_number      Int          @default(1)
+  phases           String // JSON string or comma-separated
+  status           String // pending, running, completed, failed
+  date             DateTime     @default(now())
+  userId           Int
+  user             User         @relation(fields: [userId], references: [id])
+  pdfPath          String?
+  duration_seconds Int          @default(0)
+  critical_count   Int          @default(0)
+  high_count       Int          @default(0)
+  medium_count     Int          @default(0)
+  low_count        Int          @default(0)
+  info_count       Int          @default(0)
+  results          ScanResult[]
 }
 
 model ScanResult {
-  id             Int      @id @default(autoincrement())
-  scanId         Int
-  scan           Scan     @relation(fields: [scanId], references: [id])
-  tool           String
-  phase          String?
+  id              Int       @id @default(autoincrement())
+  scanId          Int
+  scan            Scan      @relation(fields: [scanId], references: [id])
+  tool            String
+  phase           String?
   parent_phase_id String? // For grouping in UI
-  order_index    Int?     // For sorting in UI
-  command        String?
-  status         String   @default("Pending") // Pending, Running, Completed, Failed
-  exit_code      Int?
-  raw_output     String
-  output_json    String?
-  gemini_summary String?
-  severity       String?  // Critical, High, Medium, Low, Info
-  cveId          String?
-  started_at     DateTime?
-  finished_at    DateTime?
-  createdAt      DateTime @default(now())
+  order_index     Int? // For sorting in UI
+  command         String?
+  status          String    @default("Pending") // Pending, Running, Completed, Failed
+  exit_code       Int?
+  raw_output      String
+  output_json     String?
+  gemini_summary  String?
+  severity        String? // Critical, High, Medium, Low, Info
+  cveId           String?
+  started_at      DateTime?
+  finished_at     DateTime?
+  createdAt       DateTime  @default(now())
+}
+
+model WebIntelHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  target    String
+  mode      String   @default("quick") // "quick" or "full"
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
