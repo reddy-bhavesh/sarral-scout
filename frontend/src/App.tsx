@@ -13,6 +13,7 @@ import ScanDetails from './pages/ScanDetails';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
 import BreachChecker from './pages/BreachChecker';
+import WebIntelPage from './pages/WebIntelPage';
 
 const AnimatedRoutes = () => {
   const location = useLocation();
@@ -32,6 +33,7 @@ const AnimatedRoutes = () => {
               <Route path="/profile" element={<Profile />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/breach-checker" element={<BreachChecker />} />
+              <Route path="/webintel" element={<WebIntelPage />} />
           </Route>
         </Route>
       </Routes>

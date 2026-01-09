@@ -52,6 +52,8 @@ from app.api import events
 app.include_router(events.router, prefix="/events", tags=["events"])
 from app.api import breaches
 app.include_router(breaches.router, prefix="/breaches", tags=["breaches"])
+from app.api import webintel
+app.include_router(webintel.router, prefix="/webintel", tags=["webintel"])
 
 # Ensure reports directory exists
 os.makedirs("reports", exist_ok=True) # Ensures reports directory exists

@@ -179,20 +179,20 @@ export default function WebIntelligence({ data }: WebIntelligenceProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-2"><Mail className="w-4 h-4"/> Emails</h4>
-            <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+            <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1 max-h-32 overflow-y-auto">
               {currentData.emails?.map((e: string) => <li key={e}>{e}</li>)}
               {(!currentData.emails || currentData.emails.length === 0) && <li className="text-gray-500 list-none">No emails found</li>}
             </ul>
 
             <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mt-4 mb-2 flex items-center gap-2"><Phone className="w-4 h-4"/> Phones</h4>
-            <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+            <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1 max-h-32 overflow-y-auto">
               {currentData.phones?.map((p: string) => <li key={p}>{p}</li>)}
               {(!currentData.phones || currentData.phones.length === 0) && <li className="text-gray-500 list-none">No phones found</li>}
             </ul>
           </div>
           <div>
              <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-2"><LinkIcon className="w-4 h-4"/> Social Profiles</h4>
-             <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+             <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1 max-h-48 overflow-y-auto">
               {currentData.social_profiles?.map((s: string) => {
                 const href = s.startsWith('http') ? s : `https://${s}`;
                 return (
@@ -203,7 +203,7 @@ export default function WebIntelligence({ data }: WebIntelligenceProps) {
             </ul>
 
             <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mt-4 mb-2 flex items-center gap-2"><Hash className="w-4 h-4"/> Internal IPs</h4>
-             <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+             <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1 max-h-32 overflow-y-auto">
               {currentData.internal_ips?.map((ip: string) => <li key={ip}>{ip}</li>)}
               {(!currentData.internal_ips || currentData.internal_ips.length === 0) && <li className="text-gray-500 list-none">No internal IPs found</li>}
             </ul>

@@ -1,6 +1,6 @@
 
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, PlusCircle, History, LogOut, Shield, Sun, Moon, User, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, History, LogOut, Shield, Sun, Moon, User, ShieldAlert, Globe } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -13,6 +13,7 @@ const Sidebar = () => {
         { path: '/scan/new', icon: PlusCircle, label: 'New Scan' },
         { path: '/scan/history', icon: History, label: 'Scan History' },
         { path: '/breach-checker', icon: ShieldAlert, label: 'Breach Checker' },
+        { path: '/webintel', icon: Globe, label: 'Web Intelligence' },
     ];
 
     return (
