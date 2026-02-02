@@ -13,6 +13,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     wget \
     git \
+    # Node.js for Prisma (avoids nodeenv issues)
+    nodejs \
+    npm \
+    # Required for Prisma on some systems
+    libatomic1 \
     # Security tools from apt (standard versions)
     nmap \
     whois \
