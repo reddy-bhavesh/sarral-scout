@@ -29,24 +29,41 @@ class LocalToolRunner:
             async def _execute():
                 nonlocal full_stdout
                 
-                # Create subprocess
+                # Create subprocess with larger buffer limits
                 process = await asyncio.create_subprocess_shell(
                     command,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
-                    cwd="/tmp"  # Default working directory
+                    cwd="/tmp",  # Default working directory
+                    limit=10 * 1024 * 1024  # 10MB buffer limit for large outputs
                 )
                 
                 async def read_stream(stream, callback):
+                    """Read stream in chunks to handle large outputs like JSON."""
                     nonlocal full_stdout
+                    buffer = ""
                     while True:
-                        line = await stream.readline()
-                        if not line:
+                        try:
+                            # Read in chunks instead of readline to avoid line length limits
+                            chunk = await stream.read(64 * 1024)  # 64KB chunks
+                            if not chunk:
+                                break
+                            decoded = chunk.decode('utf-8', errors='replace')
+                            full_stdout += decoded
+                            buffer += decoded
+                            
+                            # Stream output line by line for real-time feedback
+                            if callback:
+                                while '\n' in buffer:
+                                    line, buffer = buffer.split('\n', 1)
+                                    await callback(line)
+                        except Exception as e:
+                            print(f"Stream read error: {e}")
                             break
-                        decoded_line = line.decode('utf-8', errors='replace')
-                        full_stdout += decoded_line
-                        if callback:
-                            await callback(decoded_line.rstrip('\n'))
+                    
+                    # Handle any remaining buffer content
+                    if buffer and callback:
+                        await callback(buffer)
                 
                 # Read stdout and stderr concurrently
                 await asyncio.gather(
