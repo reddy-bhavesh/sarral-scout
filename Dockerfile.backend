@@ -72,11 +72,11 @@ RUN go install -v github.com/tomnomnom/assetfinder@latest
 RUN nuclei -update-templates || true
 
 # ============================================================================
-# WhatWeb Installation (from source with dependencies)
+# WhatWeb Installation (from source)
 # ============================================================================
-RUN gem install bundler addressable && \
+# Install only required gems without compiling native extensions
+RUN gem install addressable ipaddr --no-document && \
     git clone https://github.com/urbanadventurer/WhatWeb.git /opt/WhatWeb && \
-    cd /opt/WhatWeb && bundle config set without 'development' && bundle install && \
     ln -s /opt/WhatWeb/whatweb /usr/local/bin/whatweb && \
     chmod +x /opt/WhatWeb/whatweb
 
