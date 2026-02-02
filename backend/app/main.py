@@ -62,5 +62,13 @@ app.mount("/reports", StaticFiles(directory="reports"), name="reports")
 @app.get("/")
 def read_root():
     return {"message": "Welcome to Pentest Web App API"}
- 
- 
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Kubernetes probes."""
+    try:
+        # Check database connectivity
+        await db.execute_raw("SELECT 1")
+        return {"status": "healthy", "database": "connected"}
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}

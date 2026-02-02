@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scout-frontend
+  namespace: scout
+  labels:
+    app: scout-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: scout-frontend
+  template:
+    metadata:
+      labels:
+        app: scout-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ${ACR_NAME}.azurecr.io/scout-frontend:latest
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: scout
+spec:
+  selector:
+    app: scout-frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP

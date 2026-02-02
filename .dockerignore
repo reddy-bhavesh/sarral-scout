@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/__pycache__/
+backend/venv/
+backend/.venv/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Database files (we create fresh in container)
+*.db
+*.db-journal
+
+# Environment files (secrets should be passed at runtime)
+.env
+.env.local
+.env.*.local
+frontend/.env
+backend/.env
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+frontend/dist/
+*.log
+
+# Documentation
+*.md
+!README.md
+
+# Backups
+backup_v1/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Terraform (not needed in container)
+terraform/
+
+# Reports (generated at runtime)
+backend/reports/
+
+# Prisma generated (regenerated in container)
+backend/prisma/.prisma/

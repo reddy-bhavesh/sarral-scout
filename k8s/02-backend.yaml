@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scout-backend
+  namespace: scout
+  labels:
+    app: scout-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scout-backend
+  template:
+    metadata:
+      labels:
+        app: scout-backend
+    spec:
+      containers:
+        - name: backend
+          image: ${ACR_NAME}.azurecr.io/scout-backend:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: scout-config
+            - secretRef:
+                name: scout-secrets
+          volumeMounts:
+            - name: db-storage
+              mountPath: /app/data
+            - name: reports-storage
+              mountPath: /app/reports
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+          # Security tools may need NET_RAW capability
+          securityContext:
+            capabilities:
+              add:
+                - NET_RAW
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: db-storage
+          persistentVolumeClaim:
+            claimName: scout-db-pvc
+        - name: reports-storage
+          persistentVolumeClaim:
+            claimName: scout-reports-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: scout
+spec:
+  selector:
+    app: scout-backend
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP

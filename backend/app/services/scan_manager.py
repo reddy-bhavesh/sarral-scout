@@ -4,7 +4,7 @@ import os
 import json
 from prisma import Prisma
 from app.models.scan import ScanCreate, ScanUpdate
-from app.services.tools import SSHClient
+from app.services.tools import get_tool_runner
 from app.services.gemini_analyzer import GeminiAnalyzer
 from app.services.report_generator import ReportGenerator
 import logging
@@ -64,9 +64,11 @@ class ScanManager:
         
         return scan
 
-    async def setup_kali_environment(self, ssh_client: SSHClient):
+    async def setup_environment(self, tool_runner):
         """
-        Uploads necessary scripts to the Kali VM.
+        Sets up the environment for scanning.
+        In SSH mode: uploads scripts to remote Kali.
+        In local mode: ensures scripts are in place.
         """
         try:
             # Path to local script
@@ -77,9 +79,9 @@ class ScanManager:
             # Remote path
             remote_script_path = "/tmp/webscraper_recon.py"
             
-            print(f"Uploading {local_script_path} to {remote_script_path}...")
+            print(f"Setting up script at {remote_script_path}...")
             if os.path.exists(local_script_path):
-                await ssh_client.upload_file(local_script_path, remote_script_path)
+                await tool_runner.upload_file(local_script_path, remote_script_path)
             else:
                 print(f"Warning: Local script not found at {local_script_path}")
                 
@@ -98,12 +100,11 @@ class ScanManager:
 
         scan_results = []
         
-        # Initialize SSH Client directly
-        from app.services.tools import SSHClient
-        ssh_client = SSHClient()
+        # Initialize tool runner (local or SSH based on EXECUTION_MODE)
+        tool_runner = get_tool_runner()
         
-        # Setup Kali Environment (Upload scripts)
-        await self.setup_kali_environment(ssh_client)
+        # Setup environment (upload scripts if needed)
+        await self.setup_environment(tool_runner)
         
         # Import TOOL_CONFIG
         from app.core.tool_config import TOOL_CONFIG
@@ -111,7 +112,7 @@ class ScanManager:
         # Create a temporary directory for this scan
         scan_dir = f"/tmp/scout_scan_{scan_id}"
         print(f"Creating temp directory: {scan_dir}")
-        await ssh_client.create_dir(scan_dir)
+        await tool_runner.create_dir(scan_dir)
 
         try:
             # 1. Pre-create all ScanResult entries
@@ -188,7 +189,7 @@ class ScanManager:
                         # Check file existence inside temp dir
                         file_path = f"{scan_dir}/{input_file}"
                         print(f"Checking input file: {file_path}")
-                        file_exists = await ssh_client.file_exists(file_path)
+                        file_exists = await tool_runner.file_exists(file_path)
                         if not file_exists:
                             print(f"Input file {input_file} missing. Skipping {tool_name}.")
                             await self.db.scanresult.update(
@@ -241,7 +242,7 @@ class ScanManager:
                     while attempt < max_attempts:
                         try:
                             # Execute the command (using full_command with cd)
-                            exec_result = await ssh_client.run_command(full_command, output_callback, timeout=timeout)
+                            exec_result = await tool_runner.run_command(full_command, output_callback, timeout=timeout)
                             
                             final_output = exec_result["output"]
                             exit_code = exec_result["exit_code"]
@@ -497,12 +498,11 @@ class ScanManager:
             # Cleanup Temp Directory
             print(f"Cleaning up temp directory: {scan_dir}")
             try:
-                await ssh_client.remove_dir(scan_dir)
+                await tool_runner.remove_dir(scan_dir)
             except Exception as e:
-                print(f"Failed to cleanup temp dir (likely connection closed): {e}")
+                print(f"Failed to cleanup temp dir: {e}")
             
-            # Close SSH connection - Not needed as SSHClient is stateless
-            # ssh_client.close()
+            # Tool runner is stateless, no cleanup needed
 
     async def stop_scan(self, scan_id: int):
         if scan_id in ScanManager._active_scans:

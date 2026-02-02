@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: scout
+---
+# ConfigMap for non-sensitive configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scout-config
+  namespace: scout
+data:
+  EXECUTION_MODE: "local"
+  ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "1440"
+  DATABASE_URL: "file:/app/data/dev.db"
+---
+# Secret for sensitive configuration (base64 encoded in production)
+# NOTE: Replace these with actual secrets before deploying
+apiVersion: v1
+kind: Secret
+metadata:
+  name: scout-secrets
+  namespace: scout
+type: Opaque
+stringData:
+  JWT_SECRET: "your-production-super-secret-key"
+  GEMINI_API_KEY: ""
+  DATABRICKS_API_KEY: ""
+  DATABRICKS_API_BASE: ""
+  MICROSOFT_CLIENT_ID: ""
+---
+# Persistent Volume Claim for database storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: scout-db-pvc
+  namespace: scout
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: managed-premium
+---
+# Persistent Volume Claim for reports
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: scout-reports-pvc
+  namespace: scout
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: managed-premium

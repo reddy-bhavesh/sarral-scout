@@ -1,0 +1,131 @@
+# Base image: Kali Linux with all security tools
+FROM kalilinux/kali-last-release
+
+# Prevent interactive prompts during apt install
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies and security tools from APT
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Core utilities
+    python3 \
+    python3-pip \
+    python3-venv \
+    curl \
+    wget \
+    git \
+    # Security tools from apt (standard versions)
+    nmap \
+    whois \
+    dnsutils \
+    sslscan \
+    sqlmap \
+    wafw00f \
+    # Ruby for WhatWeb
+    ruby \
+    ruby-dev \
+    # Cleanup
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# ============================================================================
+# Go Installation (v1.21.6 - specific version for tool compatibility)
+# ============================================================================
+RUN wget -q https://go.dev/dl/go1.21.6.linux-amd64.tar.gz && \
+    rm -rf /usr/local/go && \
+    tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz && \
+    rm go1.21.6.linux-amd64.tar.gz
+
+# Set Go environment
+ENV GOPATH=/root/go
+ENV PATH="/usr/local/go/bin:${GOPATH}/bin:${PATH}"
+
+# ============================================================================
+# Install Go-based Security Tools (SPECIFIC VERSIONS)
+# ============================================================================
+
+# Subfinder v2.6.0
+RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@v2.6.0
+
+# Amass v3.23.3
+RUN go install -v github.com/owasp-amass/amass/v3/cmd/amass@v3.23.3
+
+# Nuclei v3.4.10
+RUN go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.4.10
+
+# FFUF v2.1.0
+RUN go install -v github.com/ffuf/ffuf/v2@v2.1.0
+
+# Dalfox v2.12.0
+RUN go install -v github.com/hahwul/dalfox/v2@v2.12.0
+
+# Assetfinder (latest - no specific version required)
+RUN go install -v github.com/tomnomnom/assetfinder@latest
+
+# Update Nuclei templates
+RUN nuclei -update-templates || true
+
+# ============================================================================
+# WhatWeb Installation (from source for latest features)
+# ============================================================================
+RUN git clone https://github.com/urbanadventurer/WhatWeb.git /opt/WhatWeb && \
+    ln -s /opt/WhatWeb/whatweb /usr/local/bin/whatweb && \
+    chmod +x /opt/WhatWeb/whatweb
+
+# ============================================================================
+# Wordlists Installation
+# ============================================================================
+
+# Create wordlists directory
+RUN mkdir -p /usr/share/wordlists/dirb /usr/share/wordlists/SecLists
+
+# Download Dirb common.txt
+RUN wget -q https://raw.githubusercontent.com/v0re/dirb/master/wordlists/common.txt \
+    -O /usr/share/wordlists/dirb/common.txt
+
+# Clone SecLists (essential for comprehensive scanning)
+# Note: This adds ~500MB to image size. Comment out if not needed.
+RUN git clone --depth 1 https://github.com/danielmiessler/SecLists.git /usr/share/wordlists/SecLists && \
+    ln -s /usr/share/wordlists/SecLists /usr/share/seclists
+
+# ============================================================================
+# Application Setup
+# ============================================================================
+
+# Set working directory for the application
+WORKDIR /app
+
+# Copy requirements first for better Docker layer caching
+COPY backend/requirements.txt .
+
+# Install Python dependencies
+RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
+
+# Copy backend application code
+COPY backend/ .
+
+# Copy the webscraper script to expected location
+COPY backend/app/core/scripts/webscraper_recon.py /tmp/webscraper_recon.py
+
+# Generate Prisma client
+RUN prisma generate
+
+# Create directories for runtime data
+RUN mkdir -p /app/reports /app/data
+
+# ============================================================================
+# Environment & Runtime Configuration
+# ============================================================================
+
+ENV DATABASE_URL="file:/app/data/dev.db"
+ENV EXECUTION_MODE="local"
+ENV PYTHONUNBUFFERED=1
+
+# Expose API port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Start the FastAPI application
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
