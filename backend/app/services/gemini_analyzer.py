@@ -4,13 +4,76 @@ from app.core.config import settings
 import json
 import re
 import sys
+import hashlib
+
+
+# ============ Helper Functions for Consistency ============
+
+def _normalize_severity(severity: str) -> str:
+    """Normalize severity to exact canonical values."""
+    if not severity:
+        return "Info"
+    s = severity.strip().lower()
+    if s in ['critical', 'crit', 'c']: 
+        return 'Critical'
+    if s in ['high', 'hi', 'h']: 
+        return 'High'
+    if s in ['medium', 'med', 'm', 'moderate']: 
+        return 'Medium'
+    if s in ['low', 'lo', 'l']: 
+        return 'Low'
+    return 'Info'
+
+
+def _validate_and_normalize(result: dict) -> dict:
+    """Validate and normalize AI output for consistency."""
+    vulns = result.get("vulnerabilities", [])
+    normalized = []
+    seen_hashes = set()
+    
+    for v in vulns:
+        if not isinstance(v, dict):
+            continue
+            
+        # Create deduplication key from vulnerability name + tool
+        vuln_name = str(v.get('Vulnerability', '')).strip().lower()
+        tool_name = str(v.get('Tool', '')).strip().lower()
+        hash_key = hashlib.md5(f"{vuln_name}-{tool_name}".encode()).hexdigest()
+        
+        if hash_key in seen_hashes:
+            continue
+        seen_hashes.add(hash_key)
+        
+        # Normalize severity
+        v['Severity'] = _normalize_severity(v.get('Severity', 'Info'))
+        
+        # Normalize likelihood and impact
+        v['Likelihood'] = v.get('Likelihood', 'Medium').capitalize()
+        v['Impact'] = v.get('Impact', 'Medium').capitalize()
+        
+        # Ensure required fields have defaults
+        v.setdefault('Vulnerability', 'Unknown')
+        v.setdefault('Tool', 'Unknown')
+        v.setdefault('Heading', v.get('Vulnerability', 'Finding')[:50])
+        v.setdefault('Description', 'No description provided.')
+        v.setdefault('Remediation', 'Review and address this finding.')
+        v.setdefault('OWASP', 'Unmapped')
+        v.setdefault('CWE', 'CWE-000')
+        v.setdefault('Evidence', 'See raw output.')
+        
+        normalized.append(v)
+    
+    return {
+        "summary": result.get("summary", "No summary available."),
+        "vulnerabilities": normalized
+    }
 
 
 class GeminiAnalyzer:
     def __init__(self):
         if settings.GEMINI_API_KEY:
             self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            self.model_name = "gemini-2.0-flash"
+            self.model_name = "gemini-2.5-pro"
         else:
             self.client = None
             print("Warning: GEMINI_API_KEY not set. Analysis skipped.", file=sys.stderr)
@@ -71,12 +134,27 @@ Rules:
     # CLEAN RAW OUTPUT BEFORE SENDING TO AI
     # ------------------------------
     def _sanitize_raw(self, raw_output: dict):
-        """Reduce noise: remove timestamps, long logs, repeated patterns"""
-        text = json.dumps(raw_output, indent=2)
+        """
+        Reduce noise and improve determinism:
+        - Sort keys for consistent ordering
+        - Remove timestamps aggressively
+        - Truncate at logical boundaries (newlines)
+        - Collapse repeated content
+        """
+        # Sort keys for deterministic ordering
+        text = json.dumps(raw_output, indent=2, sort_keys=True)
 
-        # Remove timestamps
-        text = re.sub(r"\d{4}-\d{2}-\d{2}T.*?Z", "<timestamp>", text)
-        text = re.sub(r"\d{2}:\d{2}:\d{2}", "<time>", text)
+        # Remove various timestamp formats aggressively
+        text = re.sub(r"\d{4}-\d{2}-\d{2}T[^\s\"]+", "<timestamp>", text)
+        text = re.sub(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[^\s\"]*", "<timestamp>", text)
+        text = re.sub(r"\d{2}:\d{2}:\d{2}[\.,]?\d*", "<time>", text)
+        text = re.sub(r"\d{2}/\w{3}/\d{4}:\d{2}:\d{2}:\d{2}", "<timestamp>", text)
+        
+        # Remove epoch timestamps (10+ digits)
+        text = re.sub(r"\b\d{10,13}\b", "<epoch>", text)
+        
+        # Remove UUIDs (they vary between runs)
+        text = re.sub(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "<uuid>", text, flags=re.IGNORECASE)
 
         # Collapse repeated lines
         lines = text.split("\n")
@@ -87,9 +165,14 @@ Rules:
 
         result = "\n".join(cleaned)
         
-        # Truncate if too long (approx 50k chars to be safe for Gemini Flash context)
-        if len(result) > 50000:
-            result = result[:50000] + "\n...[TRUNCATED DUE TO LENGTH]..."
+        # Smart truncation: 35k chars, but cut at last complete line
+        MAX_CHARS = 35000
+        if len(result) > MAX_CHARS:
+            # Find the last newline before MAX_CHARS
+            truncate_point = result.rfind("\n", 0, MAX_CHARS)
+            if truncate_point == -1:
+                truncate_point = MAX_CHARS
+            result = result[:truncate_point] + "\n...[TRUNCATED]..."
             
         return result
 
@@ -143,10 +226,19 @@ Return a JSON object with EXACTLY:
 STRICT RULES:
 - MUST be pure JSON.
 - MUST follow the schema exactly.
-- MUST group similar issues.
+- MUST group similar issues into ONE finding (not duplicates).
 - MUST use OWASP + CWE.
 - MUST identify the Tool from the input keys.
 - NO markdown or commentary.
+
+SEVERITY GUIDELINES (be conservative):
+- Critical: ONLY for RCE, SQLi, Auth Bypass, Server Takeover (max 1-2 per phase)
+- High: Sensitive data exposure, privilege escalation, open admin panels (max 3-5 per phase)
+- Medium: Outdated software, missing headers, directory listing
+- Low: Minor info leaks, fingerprinting
+- Info: Banners, technology detection
+
+If multiple similar findings exist, CONSOLIDATE them into ONE grouped finding.
 """
 
         # ------------------------------
@@ -174,9 +266,9 @@ STRICT RULES:
 
                 result = json.loads(text)
 
-                # Validate schema
+                # Validate schema and normalize output
                 if "summary" in result and "vulnerabilities" in result:
-                    return result
+                    return _validate_and_normalize(result)
 
             except Exception as e:
                 print(f"[Gemini Analyzer Warning] Attempt {attempt+1} failed: {e}", file=sys.stderr)

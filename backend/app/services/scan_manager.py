@@ -359,24 +359,25 @@ class ScanManager:
                             phase_tools_output[r.tool] = output_data
 
                     if phase_tools_output:
-                        # Try Databricks first, fallback to Gemini
+                        # Try Gemini first, fallback to Databricks
                         analysis_result = None
                         
                         try:
+                            from app.services.gemini_analyzer import GeminiAnalyzer
+                            gemini_analyzer = GeminiAnalyzer()
+                            if gemini_analyzer.client:
+                                print(f"DEBUG: Using Gemini analyzer for {phase}")
+                                analysis_result = await gemini_analyzer.analyze_phase(phase, phase_tools_output)
+                        except Exception as e:
+                            print(f"DEBUG: Gemini analyzer failed: {e}, falling back to Databricks")
+                        
+                        # Fallback to Databricks if Gemini failed or not available
+                        if analysis_result is None:
                             from app.services.databricks_analyzer import DatabricksAnalyzer
                             databricks_analyzer = DatabricksAnalyzer()
                             if databricks_analyzer.client:
                                 print(f"DEBUG: Using Databricks analyzer for {phase}")
                                 analysis_result = await databricks_analyzer.analyze_phase(phase, phase_tools_output)
-                        except Exception as e:
-                            print(f"DEBUG: Databricks analyzer failed: {e}, falling back to Gemini")
-                        
-                        # Fallback to Gemini if Databricks failed or not available
-                        if analysis_result is None:
-                            from app.services.gemini_analyzer import GeminiAnalyzer
-                            gemini_analyzer = GeminiAnalyzer()
-                            print(f"DEBUG: Using Gemini analyzer for {phase}")
-                            analysis_result = await gemini_analyzer.analyze_phase(phase, phase_tools_output)
                         
                         gemini_summary_str = json.dumps(analysis_result)
                         

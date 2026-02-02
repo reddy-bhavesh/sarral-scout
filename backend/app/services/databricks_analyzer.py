@@ -1,5 +1,6 @@
 from openai import AsyncOpenAI
 from app.core.config import settings
+from app.services.gemini_analyzer import _validate_and_normalize
 import json
 import re
 import sys
@@ -74,12 +75,21 @@ Rules:
         """
 
     def _sanitize_raw(self, raw_output: dict) -> str:
-        """Reduce noise: remove timestamps, long logs, repeated patterns."""
-        text = json.dumps(raw_output, indent=2)
+        """
+        Reduce noise and improve determinism:
+        - Sort keys for consistent ordering
+        - Remove timestamps aggressively
+        - Truncate at logical boundaries
+        """
+        # Sort keys for deterministic ordering
+        text = json.dumps(raw_output, indent=2, sort_keys=True)
 
-        # Remove timestamps
-        text = re.sub(r"\d{4}-\d{2}-\d{2}T.*?Z", "<timestamp>", text)
-        text = re.sub(r"\d{2}:\d{2}:\d{2}", "<time>", text)
+        # Remove various timestamp formats
+        text = re.sub(r"\d{4}-\d{2}-\d{2}T[^\s\"]+", "<timestamp>", text)
+        text = re.sub(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[^\s\"]*", "<timestamp>", text)
+        text = re.sub(r"\d{2}:\d{2}:\d{2}[\.,]?\d*", "<time>", text)
+        text = re.sub(r"\b\d{10,13}\b", "<epoch>", text)
+        text = re.sub(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "<uuid>", text, flags=re.IGNORECASE)
 
         # Collapse repeated lines
         lines = text.split("\n")
@@ -90,9 +100,13 @@ Rules:
 
         result = "\n".join(cleaned)
         
-        # Truncate if too long (50k chars to be safe)
-        if len(result) > 50000:
-            result = result[:50000] + "\n...[TRUNCATED DUE TO LENGTH]..."
+        # Smart truncation at 35k chars, cut at last newline
+        MAX_CHARS = 35000
+        if len(result) > MAX_CHARS:
+            truncate_point = result.rfind("\n", 0, MAX_CHARS)
+            if truncate_point == -1:
+                truncate_point = MAX_CHARS
+            result = result[:truncate_point] + "\n...[TRUNCATED]..."
             
         return result
 
@@ -138,10 +152,19 @@ Return a JSON object with EXACTLY:
 STRICT RULES:
 - MUST be pure JSON.
 - MUST follow the schema exactly.
-- MUST group similar issues.
+- MUST group similar issues into ONE finding (not duplicates).
 - MUST use OWASP + CWE.
 - MUST identify the Tool from the input keys.
 - NO markdown or commentary.
+
+SEVERITY GUIDELINES (be conservative):
+- Critical: ONLY for RCE, SQLi, Auth Bypass, Server Takeover (max 1-2 per phase)
+- High: Sensitive data exposure, privilege escalation, open admin panels (max 3-5 per phase)
+- Medium: Outdated software, missing headers, directory listing
+- Low: Minor info leaks, fingerprinting
+- Info: Banners, technology detection
+
+If multiple similar findings exist, CONSOLIDATE them into ONE grouped finding.
 """
 
         # Retry loop
@@ -165,10 +188,10 @@ STRICT RULES:
 
                 result = json.loads(text)
 
-                # Validate schema
+                # Validate schema and normalize output
                 if "summary" in result and "vulnerabilities" in result:
                     print(f"DEBUG: Databricks analysis successful", file=sys.stderr)
-                    return result
+                    return _validate_and_normalize(result)
 
             except Exception as e:
                 print(f"[Databricks Analyzer Warning] Attempt {attempt+1} failed: {e}", file=sys.stderr)
