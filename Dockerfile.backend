@@ -76,7 +76,7 @@ RUN nuclei -update-templates || true
 # ============================================================================
 RUN gem install bundler addressable && \
     git clone https://github.com/urbanadventurer/WhatWeb.git /opt/WhatWeb && \
-    cd /opt/WhatWeb && bundle install --without development && \
+    cd /opt/WhatWeb && bundle config set without 'development' && bundle install && \
     ln -s /opt/WhatWeb/whatweb /usr/local/bin/whatweb && \
     chmod +x /opt/WhatWeb/whatweb
 
