@@ -18,7 +18,7 @@ spec:
   #       - scout.yourdomain.com
   #     secretName: scout-tls
   rules:
-    - host: scout.yourdomain.com # Replace with your domain
+    - host: scout.sarral.io # Replace with your domain
       http:
         paths:
           # API routes to backend

@@ -11,7 +11,7 @@
 set -e
 
 # Configuration - UPDATE THESE VALUES
-RESOURCE_GROUP="scout-rg"
+RESOURCE_GROUP="rg-sarral-scan"
 LOCATION="centralindia"
 AKS_CLUSTER_NAME="scout-aks"
 ACR_NAME="scoutacr"  # Must be globally unique, lowercase, alphanumeric only
