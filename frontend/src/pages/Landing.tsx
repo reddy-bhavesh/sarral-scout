@@ -8,7 +8,7 @@ import {
     Star, Code2, Moon, Sun, ChevronDown, Users,
     TrendingUp, Rocket, BarChart, CheckCircle2
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import NetworkGrid from '../components/NetworkGrid';
 
 const Landing = () => {
