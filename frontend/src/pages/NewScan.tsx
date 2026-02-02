@@ -52,12 +52,17 @@ const NewScan = () => {
         setSshMessage('');
         try {
             const response = await api.get('/system/status');
-            if (response.data.ssh_connection) {
+            const data = response.data;
+            
+            // Handle both local and SSH execution modes
+            const isReady = data.tools_ready || data.ssh_connection;
+            
+            if (isReady) {
                 setSshStatus('connected');
-                setSshMessage('Successfully connected to Kali VM');
+                setSshMessage(data.message || 'System ready');
             } else {
                 setSshStatus('error');
-                setSshMessage('Failed to connect to Kali VM. Please check your SSH configuration.');
+                setSshMessage(data.message || 'System not ready. Please check configuration.');
             }
         } catch (error) {
             setSshStatus('error');
