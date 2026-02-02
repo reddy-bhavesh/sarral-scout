@@ -21,3 +21,4 @@ phonenumbers
 httpx
 dnspython>=2.4.0
 python-whois>=0.8.0
+openai

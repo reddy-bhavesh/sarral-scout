@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     npm \
     # Required for Prisma on some systems
     libatomic1 \
+    # Network utilities
+    iputils-ping \
     # Security tools from apt (standard versions)
     nmap \
     whois \
