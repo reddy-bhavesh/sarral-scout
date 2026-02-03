@@ -62,29 +62,14 @@ docker build -f Dockerfile.frontend \
 docker push $ACR_NAME.azurecr.io/scout-frontend:latest
 
 # 3. Create Container App Environment
-# 3. Create Container App Environment & Log Analytics
+# 3. Create Container App Environment
 echo -e "${YELLOW}Creating Container Apps Environment...${NC}"
-LOG_ANALYTICS_WORKSPACE="scout-logs"
-
-# Check/Create Log Analytics Workspace
-if ! az monitor log-analytics workspace show --resource-group $RESOURCE_GROUP --workspace-name $LOG_ANALYTICS_WORKSPACE &>/dev/null; then
-    echo "Creating Log Analytics Workspace..."
-    az monitor log-analytics workspace create --resource-group $RESOURCE_GROUP --workspace-name $LOG_ANALYTICS_WORKSPACE --location $LOCATION
-else
-    echo "Log Analytics Workspace $LOG_ANALYTICS_WORKSPACE already exists"
-fi
-
-# Get Workspace ID and Secret
-LOG_WORKSPACE_CLIENT_ID=$(az monitor log-analytics workspace show --resource-group $RESOURCE_GROUP --workspace-name $LOG_ANALYTICS_WORKSPACE --query customerId -o tsv)
-LOG_WORKSPACE_SECRET=$(az monitor log-analytics workspace get-shared-keys --resource-group $RESOURCE_GROUP --workspace-name $LOG_ANALYTICS_WORKSPACE --query primarySharedKey -o tsv)
 
 if ! az containerapp env show --name $ENVIRONMENT_NAME --resource-group $RESOURCE_GROUP &>/dev/null; then
     az containerapp env create \
       --name $ENVIRONMENT_NAME \
       --resource-group $RESOURCE_GROUP \
-      --location $LOCATION \
-      --logs-workspace-id $LOG_WORKSPACE_CLIENT_ID \
-      --logs-workspace-key $LOG_WORKSPACE_SECRET
+      --location $LOCATION
 else
     echo "Environment $ENVIRONMENT_NAME already exists"
 fi
@@ -118,23 +103,28 @@ else
 fi
 
 # Mount Storage to Environment
-# Only mount if not already mounted (checking if verify command succeeds or checking logs would be complex, 
-# but 'env storage set' is generally safe to re-run as it updates configuration)
-echo "Mounting storage to ACA Environment..."
-az containerapp env storage set \
-  --name $ENVIRONMENT_NAME \
-  --resource-group $RESOURCE_GROUP \
-  --storage-name $FILE_SHARE_NAME \
-  --azure-file-account-name $STORAGE_ACCOUNT_NAME \
-  --azure-file-account-key $STORAGE_KEY \
-  --azure-file-share-name $FILE_SHARE_NAME \
-  --access-mode ReadWrite
+# Only mount if not already mounted
+echo "Checking storage configuration..."
+# Check if storage is already mounted by listing storages in the environment
+EXISTING_STORAGE=$(az containerapp env storage list --resource-group $RESOURCE_GROUP --name $ENVIRONMENT_NAME --query "[?name=='$FILE_SHARE_NAME'].name" -o tsv)
+
+if [ -z "$EXISTING_STORAGE" ]; then
+    echo "Mounting storage to ACA Environment..."
+    az containerapp env storage set \
+      --name $ENVIRONMENT_NAME \
+      --resource-group $RESOURCE_GROUP \
+      --storage-name $FILE_SHARE_NAME \
+      --azure-file-account-name $STORAGE_ACCOUNT_NAME \
+      --azure-file-account-key $STORAGE_KEY \
+      --azure-file-share-name $FILE_SHARE_NAME \
+      --access-mode ReadWrite
+else
+    echo "Storage $FILE_SHARE_NAME is already mounted. Skipping."
+fi
 
 # Load Environment Variables from backend/.env
 if [ -f backend/.env ]; then
     echo -e "${YELLOW}Loading secrets from backend/.env...${NC}"
-    # Export variables, handling comments and Windows line endings
-    # We use 'sed' to filter out empty lines, comments, and inline comments
     export $(grep -v '^#' backend/.env | sed 's/#.*//g' | tr -d '\r' | xargs)
 else
     echo -e "${RED}Error: backend/.env not found! Cannot deploy without secrets.${NC}"
@@ -143,6 +133,25 @@ fi
 
 # 5. Deploy Backend
 echo -e "${YELLOW}Deploying Backend...${NC}"
+echo "Retrieving ACR credentials..."
+# Add retry logic for ACR credentials
+MAX_RETRIES=5
+RETRY_COUNT=0
+ACR_PASSWORD=""
+
+while [ -z "$ACR_PASSWORD" ] && [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    ACR_PASSWORD=$(az acr credential show --name $ACR_NAME --query "passwords[0].value" -o tsv 2>/dev/null)
+    if [ -z "$ACR_PASSWORD" ]; then
+        echo "Waiting for ACR Admin user to propagate... ($((RETRY_COUNT+1))/$MAX_RETRIES)"
+        sleep 5
+        RETRY_COUNT=$((RETRY_COUNT+1))
+    fi
+done
+
+if [ -z "$ACR_PASSWORD" ]; then
+    echo -e "${RED}Error: Could not retrieve ACR password. Ensure Admin user is enabled on $ACR_NAME${NC}"
+    exit 1
+fi
 az containerapp create \
   --name $BACKEND_APP_NAME \
   --resource-group $RESOURCE_GROUP \
@@ -154,7 +163,7 @@ az containerapp create \
   --max-replicas 1 \
   --registry-server $ACR_NAME.azurecr.io \
   --registry-username $ACR_NAME \
-  --registry-password $(az acr credential show --name $ACR_NAME --query "passwords[0].value" -o tsv) \
+  --registry-password "$ACR_PASSWORD" \
   --secrets "jwt-secret=$JWT_SECRET" "gemini-api-key=$GEMINI_API_KEY" "databricks-api-key=$DATABRICKS_API_KEY" \
   --env-vars EXECUTION_MODE=local \
              DATABASE_URL="file:/app/data/dev.db" \
@@ -188,7 +197,7 @@ az containerapp create \
   --max-replicas 1 \
   --registry-server $ACR_NAME.azurecr.io \
   --registry-username $ACR_NAME \
-  --registry-password $(az acr credential show --name $ACR_NAME --query "passwords[0].value" -o tsv) \
+  --registry-password "$ACR_PASSWORD" \
   --env-vars BACKEND_URL="https://$BACKEND_URL"
 
 # Get Frontend URL
