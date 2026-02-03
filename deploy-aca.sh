@@ -46,7 +46,7 @@ echo "Building Frontend..."
 # Load Frontend Env Vars
 if [ -f frontend/.env ]; then
     echo "Loading frontend variables..."
-    export $(grep -v '^#' frontend/.env | tr -d '\r' | xargs)
+    export $(grep -v '^#' frontend/.env | sed 's/#.*//g' | tr -d '\r' | xargs)
 fi
 
 docker build -f Dockerfile.frontend \
@@ -99,8 +99,8 @@ az containerapp env storage set \
 if [ -f backend/.env ]; then
     echo -e "${YELLOW}Loading secrets from backend/.env...${NC}"
     # Export variables, handling comments and Windows line endings
-    # We use 'sed' to filter out empty lines and comments, then export
-    export $(grep -v '^#' backend/.env | tr -d '\r' | xargs)
+    # We use 'sed' to filter out empty lines, comments, and inline comments
+    export $(grep -v '^#' backend/.env | sed 's/#.*//g' | tr -d '\r' | xargs)
 else
     echo -e "${RED}Error: backend/.env not found! Cannot deploy without secrets.${NC}"
     exit 1
