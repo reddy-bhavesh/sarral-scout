@@ -43,7 +43,18 @@ docker push $ACR_NAME.azurecr.io/scout-backend:latest
 
 # Frontend
 echo "Building Frontend..."
-docker build -f Dockerfile.frontend -t $ACR_NAME.azurecr.io/scout-frontend:latest .
+# Load Frontend Env Vars
+if [ -f frontend/.env ]; then
+    echo "Loading frontend variables..."
+    export $(grep -v '^#' frontend/.env | tr -d '\r' | xargs)
+fi
+
+docker build -f Dockerfile.frontend \
+  --build-arg VITE_MICROSOFT_CLIENT_ID="$VITE_MICROSOFT_CLIENT_ID" \
+  --build-arg VITE_MICROSOFT_AUTHORITY="$VITE_MICROSOFT_AUTHORITY" \
+  --build-arg VITE_MICROSOFT_REDIRECT_URI="$VITE_MICROSOFT_REDIRECT_URI" \
+  -t $ACR_NAME.azurecr.io/scout-frontend:latest .
+
 docker push $ACR_NAME.azurecr.io/scout-frontend:latest
 
 # 3. Create Container App Environment
@@ -84,6 +95,17 @@ az containerapp env storage set \
   --azure-file-share-name $FILE_SHARE_NAME \
   --access-mode ReadWrite
 
+# Load Environment Variables from backend/.env
+if [ -f backend/.env ]; then
+    echo -e "${YELLOW}Loading secrets from backend/.env...${NC}"
+    # Export variables, handling comments and Windows line endings
+    # We use 'sed' to filter out empty lines and comments, then export
+    export $(grep -v '^#' backend/.env | tr -d '\r' | xargs)
+else
+    echo -e "${RED}Error: backend/.env not found! Cannot deploy without secrets.${NC}"
+    exit 1
+fi
+
 # 5. Deploy Backend
 echo -e "${YELLOW}Deploying Backend...${NC}"
 az containerapp create \
@@ -98,7 +120,16 @@ az containerapp create \
   --registry-server $ACR_NAME.azurecr.io \
   --registry-username $ACR_NAME \
   --registry-password $(az acr credential show --name $ACR_NAME --query "passwords[0].value" -o tsv) \
-  --env-vars EXECUTION_MODE=local DATABASE_URL="file:/app/data/dev.db" \
+  --secrets "jwt-secret=$JWT_SECRET" "gemini-api-key=$GEMINI_API_KEY" "databricks-api-key=$DATABRICKS_API_KEY" \
+  --env-vars EXECUTION_MODE=local \
+             DATABASE_URL="file:/app/data/dev.db" \
+             JWT_SECRET="secretref:jwt-secret" \
+             GEMINI_API_KEY="secretref:gemini-api-key" \
+             DATABRICKS_API_KEY="secretref:databricks-api-key" \
+             DATABRICKS_API_BASE="$DATABRICKS_API_BASE" \
+             DATABRICKS_MODEL="$DATABRICKS_MODEL" \
+             MICROSOFT_CLIENT_ID="$MICROSOFT_CLIENT_ID" \
+             ENABLE_MICROSOFT_SSO="$ENABLE_MICROSOFT_SSO" \
   --mounts "volume=/$FILE_SHARE_NAME,mountPath=/app/data"
 
 # Get Backend URL

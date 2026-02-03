@@ -74,6 +74,41 @@ The repository includes a workflow `.github/workflows/deploy.yml` for automated 
 2. `ACR_NAME`: Your registry name (e.g., `sarralscoutacr`)
 3. `RESOURCE_GROUP`: `rg-sarral-scan`
 
+### Environment Variables & Secrets
+
+**Security Tip:** We never commit `.env` files. Instead, we manage secrets securely.
+
+#### 1. Using the Deployment Script (`deploy-aca.sh`)
+
+The script automatically loads secrets from your local `backend/.env` file.
+
+- Ensure `backend/.env` exists and contains:
+  ```env
+  JWT_SECRET=...
+  GEMINI_API_KEY=...
+  MICROSOFT_CLIENT_ID=...
+  DATABRICKS_API_KEY=...
+  ```
+
+#### 2. Using CI/CD (GitHub Actions)
+
+Since the runner doesn't have your `.env` file, you must add these as **GitHub Secrets**:
+
+1. Go to **Settings** -> **Secrets and variables** -> **Actions**
+2. Add the following repository secrets:
+   - `AZURE_CREDENTIALS` (JSON output from `az ad sp create-for-rbac ...`)
+   - `ACR_NAME`
+   - `RESOURCE_GROUP`
+   - `JWT_SECRET`
+   - `GEMINI_API_KEY`
+   - `MICROSOFT_CLIENT_ID` (Used for both Backend and Frontend build)
+   - `DATABRICKS_API_KEY`
+
+3. Add the following **Repository Variables**:
+   - `VITE_MICROSOFT_AUTHORITY` (e.g., `https://login.microsoftonline.com/organizations`)
+   - `DATABRICKS_API_BASE`
+   - `DATABRICKS_MODEL`
+
 ---
 
 ## 3. Troubleshooting
