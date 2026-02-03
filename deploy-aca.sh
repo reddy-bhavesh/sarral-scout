@@ -23,17 +23,16 @@ NC='\033[0m'
 
 echo -e "${GREEN}=== Scout Azure Container Apps Deployment ===${NC}"
 
-# 1. Create ACR
-echo -e "${YELLOW}Creating ACR...${NC}"
-# Check if ACR exists, if not create
-if ! az acr show --name $ACR_NAME --resource-group $RESOURCE_GROUP &>/dev/null; then
-    az acr create --resource-group $RESOURCE_GROUP --name $ACR_NAME --sku Basic --admin-enabled true
-else
-    echo "ACR $ACR_NAME already exists"
-fi
+# 1. Create ACR (Skipped - Manual Mode)
+# echo -e "${YELLOW}Creating ACR...${NC}"
+# if ! az acr show --name $ACR_NAME --resource-group $RESOURCE_GROUP &>/dev/null; then
+#     az acr create --resource-group $RESOURCE_GROUP --name $ACR_NAME --sku Basic --admin-enabled true
+# else
+#     echo "ACR $ACR_NAME already exists"
+# fi
 
-# Ensure Admin User is enabled (required for ACA to pull images using keys)
-echo -e "${YELLOW}Enabling ACR Admin User...${NC}"
+# Ensure Admin User is enabled
+echo -e "${YELLOW}Ensuring ACR Admin User is enabled...${NC}"
 az acr update --name $ACR_NAME --resource-group $RESOURCE_GROUP --admin-enabled true
 
 # 2. Build & Push Images
@@ -61,66 +60,66 @@ docker build -f Dockerfile.frontend \
 
 docker push $ACR_NAME.azurecr.io/scout-frontend:latest
 
-# 3. Create Container App Environment
-# 3. Create Container App Environment
-echo -e "${YELLOW}Creating Container Apps Environment...${NC}"
+# 3. Create Container App Environment (Skipped - Manual Mode)
+# echo -e "${YELLOW}Creating Container Apps Environment...${NC}"
+#
+# if ! az containerapp env show --name $ENVIRONMENT_NAME --resource-group $RESOURCE_GROUP &>/dev/null; then
+#     az containerapp env create \
+#       --name $ENVIRONMENT_NAME \
+#       --resource-group $RESOURCE_GROUP \
+#       --location $LOCATION
+# else
+#     echo "Environment $ENVIRONMENT_NAME already exists"
+# fi
 
-if ! az containerapp env show --name $ENVIRONMENT_NAME --resource-group $RESOURCE_GROUP &>/dev/null; then
-    az containerapp env create \
-      --name $ENVIRONMENT_NAME \
-      --resource-group $RESOURCE_GROUP \
-      --location $LOCATION
-else
-    echo "Environment $ENVIRONMENT_NAME already exists"
-fi
-
-# 4. Setup Persistence (Azure Files)
-echo -e "${YELLOW}Setting up Storage...${NC}"
-# Create Storage Account
-if ! az storage account show --name $STORAGE_ACCOUNT_NAME --resource-group $RESOURCE_GROUP &>/dev/null; then
-    az storage account create \
-      --name $STORAGE_ACCOUNT_NAME \
-      --resource-group $RESOURCE_GROUP \
-      --location $LOCATION \
-      --sku Standard_LRS \
-      --kind StorageV2
-else
-    echo "Storage Account $STORAGE_ACCOUNT_NAME already exists"
-fi
-
-# Get Key
-STORAGE_KEY=$(az storage account keys list --resource-group $RESOURCE_GROUP --account-name $STORAGE_ACCOUNT_NAME --query "[0].value" -o tsv)
-
-# Create File Share
-if ! az storage share-rm show --storage-account $STORAGE_ACCOUNT_NAME --name $FILE_SHARE_NAME &>/dev/null; then
-    az storage share-rm create \
-      --resource-group $RESOURCE_GROUP \
-      --storage-account $STORAGE_ACCOUNT_NAME \
-      --name $FILE_SHARE_NAME \
-      --quota 5
-else
-    echo "File Share $FILE_SHARE_NAME already exists"
-fi
-
-# Mount Storage to Environment
-# Only mount if not already mounted
-echo "Checking storage configuration..."
-# Check if storage is already mounted by listing storages in the environment
-EXISTING_STORAGE=$(az containerapp env storage list --resource-group $RESOURCE_GROUP --name $ENVIRONMENT_NAME --query "[?name=='$FILE_SHARE_NAME'].name" -o tsv)
-
-if [ -z "$EXISTING_STORAGE" ]; then
-    echo "Mounting storage to ACA Environment..."
-    az containerapp env storage set \
-      --name $ENVIRONMENT_NAME \
-      --resource-group $RESOURCE_GROUP \
-      --storage-name $FILE_SHARE_NAME \
-      --azure-file-account-name $STORAGE_ACCOUNT_NAME \
-      --azure-file-account-key $STORAGE_KEY \
-      --azure-file-share-name $FILE_SHARE_NAME \
-      --access-mode ReadWrite
-else
-    echo "Storage $FILE_SHARE_NAME is already mounted. Skipping."
-fi
+# 4. Setup Persistence (Skipped - Manual Mode)
+# echo -e "${YELLOW}Setting up Storage...${NC}"
+# # Create Storage Account
+# if ! az storage account show --name $STORAGE_ACCOUNT_NAME --resource-group $RESOURCE_GROUP &>/dev/null; then
+#     az storage account create \
+#       --name $STORAGE_ACCOUNT_NAME \
+#       --resource-group $RESOURCE_GROUP \
+#       --location $LOCATION \
+#       --sku Standard_LRS \
+#       --kind StorageV2
+# else
+#     echo "Storage Account $STORAGE_ACCOUNT_NAME already exists"
+# fi
+#
+# # Get Key
+# STORAGE_KEY=$(az storage account keys list --resource-group $RESOURCE_GROUP --account-name $STORAGE_ACCOUNT_NAME --query "[0].value" -o tsv)
+#
+# # Create File Share
+# if ! az storage share-rm show --storage-account $STORAGE_ACCOUNT_NAME --name $FILE_SHARE_NAME &>/dev/null; then
+#     az storage share-rm create \
+#       --resource-group $RESOURCE_GROUP \
+#       --storage-account $STORAGE_ACCOUNT_NAME \
+#       --name $FILE_SHARE_NAME \
+#       --quota 5
+# else
+#     echo "File Share $FILE_SHARE_NAME already exists"
+# fi
+#
+# # Mount Storage to Environment
+# # Only mount if not already mounted
+# echo "Checking storage configuration..."
+# # Check if storage is already mounted by listing storages in the environment
+# EXISTING_STORAGE=$(az containerapp env storage list --resource-group $RESOURCE_GROUP --name $ENVIRONMENT_NAME --query "[?name=='$FILE_SHARE_NAME'].name" -o tsv)
+#
+# if [ -z "$EXISTING_STORAGE" ]; then
+#     echo "Mounting storage to ACA Environment..."
+#     az containerapp env storage set \
+#       --name $ENVIRONMENT_NAME \
+#       --resource-group $RESOURCE_GROUP \
+#       --storage-name $FILE_SHARE_NAME \
+#       --azure-file-account-name $STORAGE_ACCOUNT_NAME \
+#       --azure-file-account-key $STORAGE_KEY \
+#       --azure-file-share-name $FILE_SHARE_NAME \
+#       --access-mode ReadWrite
+# else
+#     echo "Storage $FILE_SHARE_NAME is already mounted. Skipping."
+# fi
+echo "Skipping Storage Creation & Mounting (Manual Mode)"
 
 # Load Environment Variables from backend/.env
 if [ -f backend/.env ]; then
