@@ -12,7 +12,7 @@ ACR_NAME="sarralscoutacr" # Using random suffix to ensure uniqueness
 ENVIRONMENT_NAME="scout-env"
 BACKEND_APP_NAME="scout-backend"
 FRONTEND_APP_NAME="scout-frontend"
-STORAGE_ACCOUNT_NAME="scoutstorage"
+STORAGE_ACCOUNT_NAME="sarralscoutstorage"
 FILE_SHARE_NAME="scoutdata"
 
 # Colors
