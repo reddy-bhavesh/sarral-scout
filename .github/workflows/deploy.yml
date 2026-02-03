@@ -1,4 +1,4 @@
-name: Build and Deploy to AKS
+name: Build and Deploy to Azure Container Apps
 
 on:
   push:
@@ -8,7 +8,8 @@ on:
 env:
   ACR_NAME: ${{ secrets.ACR_NAME }}
   RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
-  AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
+  BACKEND_APP_NAME: "scout-backend"
+  FRONTEND_APP_NAME: "scout-frontend"
 
 jobs:
   build-and-deploy:
@@ -41,42 +42,23 @@ jobs:
           docker tag $ACR_NAME.azurecr.io/scout-frontend:${{ github.sha }} $ACR_NAME.azurecr.io/scout-frontend:latest
           docker push $ACR_NAME.azurecr.io/scout-frontend:latest
 
-      - name: Get AKS Credentials
-        run: az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_CLUSTER_NAME --overwrite-existing
-
-      - name: Update Manifests and Deploy
+      - name: Deploy Backend to ACA
         run: |
-          # Install gettext-base for envsubst if needed (usually present)
-          sudo apt-get install -y gettext-base
+          az containerapp update \
+            --name $BACKEND_APP_NAME \
+            --resource-group $RESOURCE_GROUP \
+            --image $ACR_NAME.azurecr.io/scout-backend:${{ github.sha }}
 
-          # Substitute variables (ACR_NAME) in manifest files
-          # We use a temp directory to avoid modifying checked-out files
-          mkdir -p k8s_deploy
-
-          # Replace ${ACR_NAME} with actual value
-          envsubst < k8s/01-config.yaml > k8s_deploy/01-config.yaml
-          # Note: For backend/frontend, we specifically want to replace the image tag specific to this build
-          # to ensure K8s detects the change and redeploys.
-
-          # Replace image placeholders
-          # We manually construct the image string to include the SHA tag
-          export BACKEND_IMAGE="$ACR_NAME.azurecr.io/scout-backend:${{ github.sha }}"
-          export FRONTEND_IMAGE="$ACR_NAME.azurecr.io/scout-frontend:${{ github.sha }}"
-
-          # Use sed to replace the generic 'latest' image definition with the specific SHA tag
-          # This ensures that even if 'latest' is cached, the new SHA forces a rollout
-          sed "s|\${ACR_NAME}.azurecr.io/scout-backend:latest|$BACKEND_IMAGE|g" k8s/02-backend.yaml > k8s_deploy/02-backend.yaml
-          sed "s|\${ACR_NAME}.azurecr.io/scout-frontend:latest|$FRONTEND_IMAGE|g" k8s/03-frontend.yaml > k8s_deploy/03-frontend.yaml
-
-          cp k8s/04-ingress.yaml k8s_deploy/04-ingress.yaml
-
-          # Apply manifests
-          kubectl apply -f k8s_deploy/01-config.yaml
-          kubectl apply -f k8s_deploy/02-backend.yaml
-          kubectl apply -f k8s_deploy/03-frontend.yaml
-          kubectl apply -f k8s_deploy/04-ingress.yaml
-
-      - name: Force Rollout Restart (Optional safety)
+      - name: Get Backend URL
+        id: get-backend-url
         run: |
-          kubectl rollout restart deployment/scout-backend -n scout
-          kubectl rollout restart deployment/scout-frontend -n scout
+          URL=$(az containerapp show --name $BACKEND_APP_NAME --resource-group $RESOURCE_GROUP --query properties.configuration.ingress.fqdn -o tsv)
+          echo "BACKEND_URL=https://$URL" >> $GITHUB_ENV
+
+      - name: Deploy Frontend to ACA
+        run: |
+          az containerapp update \
+            --name $FRONTEND_APP_NAME \
+            --resource-group $RESOURCE_GROUP \
+            --image $ACR_NAME.azurecr.io/scout-frontend:${{ github.sha }} \
+            --set-env-vars BACKEND_URL=$BACKEND_URL

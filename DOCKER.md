@@ -1,143 +1,94 @@
-# Docker & Kubernetes Deployment Guide
+# Scout - Deployment Guide
 
-This guide covers containerizing and deploying Scout to Azure Kubernetes Service (AKS).
+This guide covers how to run Scout (Sarral-Scan) locally using Docker and how to deploy it to **Azure Container Apps (ACA)**.
 
-## Quick Start (Local Docker)
+## 1. Local Development
 
-```bash
-# Build and run locally
-docker-compose up --build
-
-# Access the app
-# Frontend: http://localhost
-# Backend:  http://localhost:8000
-```
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Azure Kubernetes Service                  │
-│  ┌─────────────────┐         ┌──────────────────────────┐  │
-│  │    Frontend     │◄───────►│        Backend           │  │
-│  │ (Nginx + React) │         │ (FastAPI + Kali Tools)   │  │
-│  │   2 replicas    │         │      1 replica           │  │
-│  └─────────────────┘         └──────────────────────────┘  │
-│           ▲                              │                  │
-│           │                              ▼                  │
-│  ┌────────────────┐          ┌─────────────────────────┐   │
-│  │ Nginx Ingress  │          │   Persistent Volumes    │   │
-│  │ LoadBalancer   │          │  (SQLite DB + Reports)  │   │
-│  └────────────────┘          └─────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Files Overview
-
-| File                  | Purpose                              |
-| --------------------- | ------------------------------------ |
-| `Dockerfile.frontend` | Multi-stage build for React frontend |
-| `Dockerfile.backend`  | Kali-based image with security tools |
-| `docker-compose.yml`  | Local development setup              |
-| `nginx.conf`          | Nginx config with API proxy          |
-| `k8s/*.yaml`          | Kubernetes manifests                 |
-| `deploy-aks.sh`       | Automated AKS deployment script      |
-
-## Tool Versions
-
-| Tool        | Version      |
-| ----------- | ------------ |
-| Go          | 1.21.6       |
-| Subfinder   | v2.6.0       |
-| Amass       | v3.23.3      |
-| Nuclei      | v3.4.10      |
-| FFUF        | v2.1.0       |
-| Dalfox      | v2.12.0      |
-| Assetfinder | latest       |
-| WhatWeb     | latest (git) |
-
-## AKS Deployment
+Run the full stack (Frontend, Backend, Redis, Database) locally with Docker Compose.
 
 ### Prerequisites
 
-1. Azure CLI installed and logged in
-2. Docker installed
-3. kubectl installed
+- Docker Desktop installed
+- Git
 
-### Option 1: Automated Deployment
-
-```bash
-# Edit configuration values in deploy-aks.sh first
-chmod +x deploy-aks.sh
-./deploy-aks.sh
-```
-
-### Option 2: Manual Deployment
-
-1. **Create Azure Resources**
+### Run Locally
 
 ```bash
-RESOURCE_GROUP="scout-rg"
-ACR_NAME="scoutacr"
-AKS_NAME="scout-aks"
+# 1. Start the stack
+docker-compose up --build
 
-az group create --name $RESOURCE_GROUP --location centralindia
-az acr create --resource-group $RESOURCE_GROUP --name $ACR_NAME --sku Basic
-az aks create --resource-group $RESOURCE_GROUP --name $AKS_NAME \
-  --node-count 2 --attach-acr $ACR_NAME --generate-ssh-keys
+# 2. Access the application
+# Frontend: http://localhost:3000
+# Backend health: http://localhost:8000/health
 ```
 
-2. **Build and Push Images**
+### Configuration
+
+By default, the local setup uses:
+
+- **Database:** SQLite (persisted in volume `db_data`)
+- **Execution Mode:** `local` (runs tools inside the backend container)
+
+---
+
+## 2. Azure Container Apps Deployment
+
+We use Azure Container Apps for a scalable, serverless deployment.
+
+### Architecture
+
+- **Frontend App**: Runs Nginx + React. Configured with `BACKEND_URL` at runtime.
+- **Backend App**: Runs FastAPI + Security Tools. Mounts Azure Files for database persistence.
+- **Storage**: Azure File Share (`scoutdata`) mounted to `/app/data`.
+
+### Automated Deployment Script
+
+The `deploy-aca.sh` script handles everything (Infrastructure provisioning + Deployment).
 
 ```bash
-az acr login --name $ACR_NAME
-docker build -f Dockerfile.backend -t $ACR_NAME.azurecr.io/scout-backend:latest .
-docker build -f Dockerfile.frontend -t $ACR_NAME.azurecr.io/scout-frontend:latest .
-docker push $ACR_NAME.azurecr.io/scout-backend:latest
-docker push $ACR_NAME.azurecr.io/scout-frontend:latest
+# 1. Edit configuration (optional)
+# Open deploy-aca.sh and set a unique ACR_NAME if needed.
+
+# 2. Run the script
+chmod +x deploy-aca.sh
+./deploy-aca.sh
 ```
 
-3. **Deploy to AKS**
+**What the script does:**
 
-```bash
-az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_NAME
-# Update ${ACR_NAME} in k8s/*.yaml files
-kubectl apply -f k8s/
-```
+1. Creates Resource Group (`rg-sarral-scan`)
+2. Creates Azure Container Registry (ACR)
+3. Builds and Pushes Docker images
+4. Creates Azure Container Apps Environment
+5. **Sets up Persistence**: Creates Storage Account & File Share
+6. Deploys Backend with volume mount
+7. Deploys Frontend with `BACKEND_URL` pointing to the Backend
 
-## Configuration
+### CI/CD (GitHub Actions)
 
-### Environment Variables
+The repository includes a workflow `.github/workflows/deploy.yml` for automated updates.
 
-| Variable         | Description                                | Default                 |
-| ---------------- | ------------------------------------------ | ----------------------- |
-| `EXECUTION_MODE` | `local` (container) or `ssh` (remote Kali) | `local`                 |
-| `JWT_SECRET`     | JWT signing key                            | Required                |
-| `GEMINI_API_KEY` | Google Gemini API key                      | Optional                |
-| `DATABASE_URL`   | SQLite database path                       | `file:/app/data/dev.db` |
+**Setup Secrets in GitHub:**
 
-### Updating Secrets
+1. `AZURE_CREDENTIALS`: Output of `az ad sp create-for-rbac ...`
+2. `ACR_NAME`: Your registry name (e.g., `sarralscoutacr`)
+3. `RESOURCE_GROUP`: `rg-sarral-scan`
 
-```bash
-kubectl create secret generic scout-secrets -n scout \
-  --from-literal=JWT_SECRET='your-secret' \
-  --from-literal=GEMINI_API_KEY='your-key' \
-  --dry-run=client -o yaml | kubectl apply -f -
-```
+---
 
-## Troubleshooting
+## 3. Troubleshooting
 
-```bash
-# View pod status
-kubectl get pods -n scout
+### Frontend cannot connect to Backend
 
-# View backend logs
-kubectl logs -f deployment/scout-backend -n scout
+- **Local:** Ensure port `8000` is exposed. Check network tab for requests to `http://localhost:8000`.
+- **Azure:** Check the Frontend logs. Ensure `BACKEND_URL` env var is set correctly to the HTTPS URL of the Backend Container App.
 
-# Shell into backend container
-kubectl exec -it deployment/scout-backend -n scout -- /bin/bash
+### Database Persistence
 
-# Test tools inside container
-kubectl exec -it deployment/scout-backend -n scout -- nmap --version
-kubectl exec -it deployment/scout-backend -n scout -- nuclei --version
-```
+- **Local:** Data is in the named volume `db_data`. `docker-compose down -v` will delete it.
+- **Azure:** Data is in the Azure File Share `scoutdata`. You can browse/backup this via Azure Portal -> Storage Account -> File Shares.
+
+### Build Issues
+
+- if `npm ci` fails: Check `Dockerfile.frontend` uses `--legacy-peer-deps`.
+- if backend tools fail: Ensure the container has outbound internet access.

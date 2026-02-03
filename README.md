@@ -46,17 +46,17 @@
 ### Backend
 
 - **Framework:** [FastAPI](https://fastapi.tiangolo.com/) (Python)
-- **Database:** PostgreSQL (via [Prisma ORM](https://prisma-client-py.readthedocs.io/))
+- **Database:** SQLite (persisted via Azure Files)
 - **Task Management:** `asyncio` for concurrent tool execution
-- **Remote Execution:** `AsyncSSH` for executing tools on local or remote VMs
+- **Execution Mode:** Containerized Local Execution (Tools pre-installed in Docker)
 - **AI Engine:** Google Generative AI (Gemini)
 - **Security:** PyJWT (Authentication), Passlib (Hashing)
 
 ## 📦 Deployment
 
-Sarral-Scan is designed to be deployed on a single **Ubuntu 22.04 VM** (e.g., Azure B2s). Use the provided deployment guide to set up the environment, install security tools (Nmap, Go, Nuclei, etc.), and configure Nginx.
+Sarral-Scan is fully containerized and designed to run on **Azure Container Apps (ACA)** or locally via Docker Compose.
 
-👉 **[Read the Full Deployment Guide](DEPLOYMENT.md)**
+👉 **[Read the Full Deployment Guide](DOCKER.md)**
 
 ## 📂 Project Structure
 
