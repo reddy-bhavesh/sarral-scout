@@ -32,6 +32,10 @@ else
     echo "ACR $ACR_NAME already exists"
 fi
 
+# Ensure Admin User is enabled (required for ACA to pull images using keys)
+echo -e "${YELLOW}Enabling ACR Admin User...${NC}"
+az acr update --name $ACR_NAME --resource-group $RESOURCE_GROUP --admin-enabled true
+
 # 2. Build & Push Images
 echo -e "${YELLOW}Building & Pushing Images...${NC}"
 az acr login --name $ACR_NAME
@@ -58,33 +62,64 @@ docker build -f Dockerfile.frontend \
 docker push $ACR_NAME.azurecr.io/scout-frontend:latest
 
 # 3. Create Container App Environment
+# 3. Create Container App Environment & Log Analytics
 echo -e "${YELLOW}Creating Container Apps Environment...${NC}"
-az containerapp env create \
-  --name $ENVIRONMENT_NAME \
-  --resource-group $RESOURCE_GROUP \
-  --location $LOCATION
+LOG_ANALYTICS_WORKSPACE="scout-logs"
+
+# Check/Create Log Analytics Workspace
+if ! az monitor log-analytics workspace show --resource-group $RESOURCE_GROUP --workspace-name $LOG_ANALYTICS_WORKSPACE &>/dev/null; then
+    echo "Creating Log Analytics Workspace..."
+    az monitor log-analytics workspace create --resource-group $RESOURCE_GROUP --workspace-name $LOG_ANALYTICS_WORKSPACE --location $LOCATION
+else
+    echo "Log Analytics Workspace $LOG_ANALYTICS_WORKSPACE already exists"
+fi
+
+# Get Workspace ID and Secret
+LOG_WORKSPACE_CLIENT_ID=$(az monitor log-analytics workspace show --resource-group $RESOURCE_GROUP --workspace-name $LOG_ANALYTICS_WORKSPACE --query customerId -o tsv)
+LOG_WORKSPACE_SECRET=$(az monitor log-analytics workspace get-shared-keys --resource-group $RESOURCE_GROUP --workspace-name $LOG_ANALYTICS_WORKSPACE --query primarySharedKey -o tsv)
+
+if ! az containerapp env show --name $ENVIRONMENT_NAME --resource-group $RESOURCE_GROUP &>/dev/null; then
+    az containerapp env create \
+      --name $ENVIRONMENT_NAME \
+      --resource-group $RESOURCE_GROUP \
+      --location $LOCATION \
+      --logs-workspace-id $LOG_WORKSPACE_CLIENT_ID \
+      --logs-workspace-key $LOG_WORKSPACE_SECRET
+else
+    echo "Environment $ENVIRONMENT_NAME already exists"
+fi
 
 # 4. Setup Persistence (Azure Files)
 echo -e "${YELLOW}Setting up Storage...${NC}"
 # Create Storage Account
-az storage account create \
-  --name $STORAGE_ACCOUNT_NAME \
-  --resource-group $RESOURCE_GROUP \
-  --location $LOCATION \
-  --sku Standard_LRS \
-  --kind StorageV2
+if ! az storage account show --name $STORAGE_ACCOUNT_NAME --resource-group $RESOURCE_GROUP &>/dev/null; then
+    az storage account create \
+      --name $STORAGE_ACCOUNT_NAME \
+      --resource-group $RESOURCE_GROUP \
+      --location $LOCATION \
+      --sku Standard_LRS \
+      --kind StorageV2
+else
+    echo "Storage Account $STORAGE_ACCOUNT_NAME already exists"
+fi
 
 # Get Key
 STORAGE_KEY=$(az storage account keys list --resource-group $RESOURCE_GROUP --account-name $STORAGE_ACCOUNT_NAME --query "[0].value" -o tsv)
 
 # Create File Share
-az storage share-rm create \
-  --resource-group $RESOURCE_GROUP \
-  --storage-account $STORAGE_ACCOUNT_NAME \
-  --name $FILE_SHARE_NAME \
-  --quota 5
+if ! az storage share-rm show --storage-account $STORAGE_ACCOUNT_NAME --name $FILE_SHARE_NAME &>/dev/null; then
+    az storage share-rm create \
+      --resource-group $RESOURCE_GROUP \
+      --storage-account $STORAGE_ACCOUNT_NAME \
+      --name $FILE_SHARE_NAME \
+      --quota 5
+else
+    echo "File Share $FILE_SHARE_NAME already exists"
+fi
 
 # Mount Storage to Environment
+# Only mount if not already mounted (checking if verify command succeeds or checking logs would be complex, 
+# but 'env storage set' is generally safe to re-run as it updates configuration)
 echo "Mounting storage to ACA Environment..."
 az containerapp env storage set \
   --name $ENVIRONMENT_NAME \
