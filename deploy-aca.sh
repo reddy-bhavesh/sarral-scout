@@ -151,20 +151,16 @@ if [ -z "$ACR_PASSWORD" ]; then
     echo -e "${RED}Error: Could not retrieve ACR password. Ensure Admin user is enabled on $ACR_NAME${NC}"
     exit 1
 fi
-az containerapp create \
+
+az containerapp update \
   --name $BACKEND_APP_NAME \
   --resource-group $RESOURCE_GROUP \
-  --environment $ENVIRONMENT_NAME \
   --image $ACR_NAME.azurecr.io/scout-backend:latest \
-  --target-port 8000 \
-  --ingress external \
-  --min-replicas 1 \
-  --max-replicas 1 \
   --registry-server $ACR_NAME.azurecr.io \
   --registry-username $ACR_NAME \
   --registry-password "$ACR_PASSWORD" \
-  --secrets "jwt-secret=$JWT_SECRET" "gemini-api-key=$GEMINI_API_KEY" "databricks-api-key=$DATABRICKS_API_KEY" \
-  --env-vars EXECUTION_MODE=local \
+  --set-secrets "jwt-secret=$JWT_SECRET" "gemini-api-key=$GEMINI_API_KEY" "databricks-api-key=$DATABRICKS_API_KEY" \
+  --set-env-vars EXECUTION_MODE=local \
              DATABASE_URL="file:/app/data/dev.db" \
              JWT_SECRET="secretref:jwt-secret" \
              GEMINI_API_KEY="secretref:gemini-api-key" \
@@ -172,8 +168,7 @@ az containerapp create \
              DATABRICKS_API_BASE="$DATABRICKS_API_BASE" \
              DATABRICKS_MODEL="$DATABRICKS_MODEL" \
              MICROSOFT_CLIENT_ID="$MICROSOFT_CLIENT_ID" \
-             ENABLE_MICROSOFT_SSO="$ENABLE_MICROSOFT_SSO" \
-  --mounts "volume=/$FILE_SHARE_NAME,mountPath=/app/data"
+             ENABLE_MICROSOFT_SSO="$ENABLE_MICROSOFT_SSO"
 
 # Get Backend URL
 BACKEND_URL=$(az containerapp show --name $BACKEND_APP_NAME --resource-group $RESOURCE_GROUP --query properties.configuration.ingress.fqdn -o tsv)
@@ -185,19 +180,14 @@ echo -e "${YELLOW}Deploying Frontend...${NC}"
 # We'll use the public URL for now.
 # However, React app runs in browser, so it needs public URL regardless.
 
-az containerapp create \
+az containerapp update \
   --name $FRONTEND_APP_NAME \
   --resource-group $RESOURCE_GROUP \
-  --environment $ENVIRONMENT_NAME \
   --image $ACR_NAME.azurecr.io/scout-frontend:latest \
-  --target-port 80 \
-  --ingress external \
-  --min-replicas 1 \
-  --max-replicas 1 \
   --registry-server $ACR_NAME.azurecr.io \
   --registry-username $ACR_NAME \
   --registry-password "$ACR_PASSWORD" \
-  --env-vars BACKEND_URL="https://$BACKEND_URL"
+  --set-env-vars BACKEND_URL="https://$BACKEND_URL"
 
 # Get Frontend URL
 FRONTEND_URL=$(az containerapp show --name $FRONTEND_APP_NAME --resource-group $RESOURCE_GROUP --query properties.configuration.ingress.fqdn -o tsv)
