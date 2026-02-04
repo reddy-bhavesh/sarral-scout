@@ -31,12 +31,25 @@ http {
 
         # API Proxy - All backend routes
         location ~ ^/(api|auth|scans|users|events|system|reports|breach|web-intel) {
-            proxy_pass ${BACKEND_URL};
+            # Use Docker/Azure DNS resolver
+            resolver 127.0.0.11 valid=30s;
+            
+            # Set backend URL from env var
+            set $backend "${BACKEND_URL}";
+            proxy_pass $backend;
+            
             proxy_http_version 1.1;
-            proxy_set_header Host $host;
+            
+            # IMPORTANT: Pass the backend's hostname, not the frontend's
+            proxy_set_header Host $proxy_host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
+
+            # SSL Configuration for HTTPS backend
+            proxy_ssl_server_name on;
+            proxy_ssl_protocols TLSv1.2 TLSv1.3;
+            proxy_ssl_verify off;
 
             # SSE Support for real-time events
             proxy_set_header Connection '';
