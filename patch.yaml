@@ -1,0 +1,11 @@
+properties:
+  template:
+    volumes:
+      - name: scoutdata
+        storageName: scoutdata
+        storageType: AzureFile
+    containers:
+      - name: scout-backend
+        volumeMounts:
+          - volumeName: scoutdata
+            mountPath: /app/data

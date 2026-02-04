@@ -111,6 +111,100 @@ Since the runner doesn't have your `.env` file, you must add these as **GitHub S
 
 ---
 
+## 3. Manual CLI Deployment (Reference)
+
+If you prefer running commands manually instead of using the script, follow these steps.
+
+### Prerequisites
+
+```bash
+# Set your variables
+export RESOURCE_GROUP="rg-sarral-scan"
+export ACR_NAME="sarralscoutacr"
+export BACKEND_APP_NAME="scout-backend"
+export FRONTEND_APP_NAME="scout-frontend"
+
+# Login to Azure
+az login
+az acr login --name $ACR_NAME
+```
+
+### 1. Build & Push Images
+
+**Backend:**
+
+```bash
+docker build -f Dockerfile.backend -t $ACR_NAME.azurecr.io/scout-backend:latest .
+docker push $ACR_NAME.azurecr.io/scout-backend:latest
+```
+
+**Frontend:**
+_Note: We must pass build args for React environment variables._
+
+```bash
+# Load variables from frontend/.env (or set manually)
+export $(grep -v '^#' frontend/.env | sed 's/#.*//g' | tr -d '\r' | xargs)
+
+docker build -f Dockerfile.frontend \
+  --build-arg VITE_MICROSOFT_CLIENT_ID="$VITE_MICROSOFT_CLIENT_ID" \
+  --build-arg VITE_MICROSOFT_AUTHORITY="$VITE_MICROSOFT_AUTHORITY" \
+  --build-arg VITE_MICROSOFT_REDIRECT_URI="$VITE_MICROSOFT_REDIRECT_URI" \
+  -t $ACR_NAME.azurecr.io/scout-frontend:latest .
+
+docker push $ACR_NAME.azurecr.io/scout-frontend:latest
+```
+
+### 2. Deploy (Update) Container Apps
+
+**Setup Credentials:**
+
+```bash
+export ACR_PASSWORD=$(az acr credential show --name $ACR_NAME --query "passwords[0].value" -o tsv)
+```
+
+**Deploy Backend:**
+
+```bash
+# Load secrets (careful with quoting!)
+export $(grep -v '^#' backend/.env | sed 's/#.*//g' | tr -d '\r' | xargs)
+
+az containerapp update \
+  --name $BACKEND_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --image $ACR_NAME.azurecr.io/scout-backend:latest \
+  --registry-server $ACR_NAME.azurecr.io \
+  --registry-username $ACR_NAME \
+  --registry-password "$ACR_PASSWORD" \
+  --set-secrets "jwt-secret=$JWT_SECRET" "gemini-api-key=$GEMINI_API_KEY" "databricks-api-key=$DATABRICKS_API_KEY" \
+  --set-env-vars EXECUTION_MODE=local \
+             DATABASE_URL="file:/app/data/dev.db" \
+             JWT_SECRET="secretref:jwt-secret" \
+             GEMINI_API_KEY="secretref:gemini-api-key" \
+             DATABRICKS_API_KEY="secretref:databricks-api-key" \
+             DATABRICKS_API_BASE="$DATABRICKS_API_BASE" \
+             DATABRICKS_MODEL="$DATABRICKS_MODEL" \
+             MICROSOFT_CLIENT_ID="$MICROSOFT_CLIENT_ID" \
+             ENABLE_MICROSOFT_SSO="$ENABLE_MICROSOFT_SSO"
+```
+
+**Deploy Frontend:**
+
+```bash
+# Get Backend URL first
+export BACKEND_URL="https://$(az containerapp show --name $BACKEND_APP_NAME --resource-group $RESOURCE_GROUP --query properties.configuration.ingress.fqdn -o tsv)"
+
+az containerapp update \
+  --name $FRONTEND_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --image $ACR_NAME.azurecr.io/scout-frontend:latest \
+  --registry-server $ACR_NAME.azurecr.io \
+  --registry-username $ACR_NAME \
+  --registry-password "$ACR_PASSWORD" \
+  --set-env-vars BACKEND_URL="$BACKEND_URL"
+```
+
+---
+
 ## 3. Troubleshooting
 
 ### Frontend cannot connect to Backend
