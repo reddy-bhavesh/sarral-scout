@@ -46,13 +46,19 @@ jobs:
           docker tag $ACR_NAME.azurecr.io/scout-frontend:${{ github.sha }} $ACR_NAME.azurecr.io/scout-frontend:latest
           docker push $ACR_NAME.azurecr.io/scout-frontend:latest
 
+      - name: Set Backend Secrets
+        run: |
+          az containerapp secret set \
+            --name $BACKEND_APP_NAME \
+            --resource-group $RESOURCE_GROUP \
+            --secrets "jwt-secret=${{ secrets.JWT_SECRET }}" "gemini-api-key=${{ secrets.GEMINI_API_KEY }}" "databricks-api-key=${{ secrets.DATABRICKS_API_KEY }}"
+
       - name: Deploy Backend to ACA
         run: |
           az containerapp update \
             --name $BACKEND_APP_NAME \
             --resource-group $RESOURCE_GROUP \
             --image $ACR_NAME.azurecr.io/scout-backend:${{ github.sha }} \
-            --set-secrets "jwt-secret=${{ secrets.JWT_SECRET }}" "gemini-api-key=${{ secrets.GEMINI_API_KEY }}" "databricks-api-key=${{ secrets.DATABRICKS_API_KEY }}" \
             --set-env-vars JWT_SECRET=secretref:jwt-secret \
                            GEMINI_API_KEY=secretref:gemini-api-key \
                            DATABRICKS_API_KEY=secretref:databricks-api-key \
