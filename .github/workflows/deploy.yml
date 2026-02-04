@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  ACR_NAME: ${{ secrets.ACR_NAME }}
-  RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
+  ACR_NAME: "sarralscoutacr"
+  RESOURCE_GROUP: "rg-sarral-scan"
   BACKEND_APP_NAME: "scout-backend"
   FRONTEND_APP_NAME: "scout-frontend"
 
