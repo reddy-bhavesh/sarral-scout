@@ -1,7 +1,7 @@
 
 TOOL_CONFIG = {
     "Passive Recon": [
-        {"name": "Connectivity Check", "command": "curl -sI --connect-timeout 10 http://{target} 2>&1 | head -20 && curl -sI --connect-timeout 10 https://{target} 2>&1 | head -20 && echo 'TCP connectivity check completed for {target}'", "parse_mode": "raw", "timeout": 30},
+        {"name": "Connectivity Test", "command": "curl -sI --connect-timeout 10 http://{target} 2>&1 | head -20 && curl -sI --connect-timeout 10 https://{target} 2>&1 | head -20 && echo 'TCP connectivity check completed for {target}'", "parse_mode": "raw", "timeout": 30},
         {"name": "Whois", "command": "whois {target}", "parse_mode": "raw", "timeout": 120},
         {"name": "NSLookup", "command": "nslookup {target}", "parse_mode": "raw", "timeout": 120},
         {"name": "Subfinder (Passive)", "command": "subfinder -d {target} -sources crtsh,alienvault,waybackarchive -o {scan_dir}/subs_passive.txt", "parse_mode": "list", "bulk": True, "post_process": "extract_domains", "timeout": 600},
