@@ -6,6 +6,7 @@ properties:
         storageType: AzureFile
     containers:
       - name: scout-backend
+        image: sarralscoutacr.azurecr.io/scout-backend:latest
         volumeMounts:
           - volumeName: scoutdata
             mountPath: /app/data
