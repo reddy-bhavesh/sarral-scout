@@ -52,14 +52,16 @@ jobs:
             --name $BACKEND_APP_NAME \
             --resource-group $RESOURCE_GROUP \
             --image $ACR_NAME.azurecr.io/scout-backend:${{ github.sha }} \
-            --secrets "jwt-secret=${{ secrets.JWT_SECRET }}" "gemini-api-key=${{ secrets.GEMINI_API_KEY }}" "databricks-api-key=${{ secrets.DATABRICKS_API_KEY }}" \
+            --set-secrets "jwt-secret=${{ secrets.JWT_SECRET }}" "gemini-api-key=${{ secrets.GEMINI_API_KEY }}" "databricks-api-key=${{ secrets.DATABRICKS_API_KEY }}" \
             --set-env-vars JWT_SECRET=secretref:jwt-secret \
                            GEMINI_API_KEY=secretref:gemini-api-key \
                            DATABRICKS_API_KEY=secretref:databricks-api-key \
-                           DATABRICKS_API_BASE=${{ vars.DATABRICKS_API_BASE }} \
-                           DATABRICKS_MODEL=${{ vars.DATABRICKS_MODEL }} \
-                           MICROSOFT_CLIENT_ID=${{ secrets.MICROSOFT_CLIENT_ID }} \
-                           ENABLE_MICROSOFT_SSO=true
+                           DATABRICKS_API_BASE="${{ vars.DATABRICKS_API_BASE }}" \
+                           DATABRICKS_MODEL="${{ vars.DATABRICKS_MODEL }}" \
+                           MICROSOFT_CLIENT_ID="${{ secrets.MICROSOFT_CLIENT_ID }}" \
+                           ENABLE_MICROSOFT_SSO=true \
+                           DATABASE_URL="file:/app/dev.db" \
+                           EXECUTION_MODE=local
 
       - name: Get Backend URL
         id: get-backend-url
