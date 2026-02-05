@@ -16,3 +16,4 @@ test_db.py
 test_scan.py
 verify_changes.py
 test_xon_api.py
+locustfile.py

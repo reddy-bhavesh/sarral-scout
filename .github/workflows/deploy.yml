@@ -46,6 +46,28 @@ jobs:
           docker tag $ACR_NAME.azurecr.io/scout-frontend:${{ github.sha }} $ACR_NAME.azurecr.io/scout-frontend:latest
           docker push $ACR_NAME.azurecr.io/scout-frontend:latest
 
+      - name: Ensure PostgreSQL Container Exists
+        run: |
+          # Check if postgres container exists, create if not
+          if ! az containerapp show --name scout-postgres --resource-group $RESOURCE_GROUP &>/dev/null; then
+            echo "Creating PostgreSQL container..."
+            ENVIRONMENT=$(az containerapp show --name $BACKEND_APP_NAME --resource-group $RESOURCE_GROUP --query properties.environmentId -o tsv | xargs basename)
+            az containerapp create \
+              --name scout-postgres \
+              --resource-group $RESOURCE_GROUP \
+              --environment $ENVIRONMENT \
+              --image postgres:15-alpine \
+              --min-replicas 1 \
+              --max-replicas 1 \
+              --cpu 0.5 \
+              --memory 1.0Gi \
+              --env-vars POSTGRES_USER=scout POSTGRES_PASSWORD=scout_password POSTGRES_DB=scoutdb PGDATA=/var/lib/postgresql/data/pgdata \
+              --ingress internal \
+              --target-port 5432
+          else
+            echo "PostgreSQL container already exists"
+          fi
+
       - name: Set Backend Secrets
         run: |
           az containerapp secret set \
@@ -66,7 +88,7 @@ jobs:
                            DATABRICKS_MODEL="${{ vars.DATABRICKS_MODEL }}" \
                            MICROSOFT_CLIENT_ID="${{ secrets.MICROSOFT_CLIENT_ID }}" \
                            ENABLE_MICROSOFT_SSO=true \
-                           DATABASE_URL="file:/app/dev.db" \
+                           DATABASE_URL="postgresql://scout:scout_password@scout-postgres/scoutdb" \
                            EXECUTION_MODE=local
 
       - name: Get Backend URL
