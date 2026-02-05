@@ -47,11 +47,26 @@ jobs:
           docker push $ACR_NAME.azurecr.io/scout-frontend:latest
 
       - name: Ensure PostgreSQL Container Exists
+        env:
+          STORAGE_ACCOUNT: ${{ secrets.STORAGE_ACCOUNT_NAME }}
+          STORAGE_KEY: ${{ secrets.STORAGE_ACCOUNT_KEY }}
         run: |
           # Check if postgres container exists, create if not
           if ! az containerapp show --name scout-postgres --resource-group $RESOURCE_GROUP &>/dev/null; then
             echo "Creating PostgreSQL container..."
             ENVIRONMENT=$(az containerapp show --name $BACKEND_APP_NAME --resource-group $RESOURCE_GROUP --query properties.environmentId -o tsv | xargs basename)
+            
+            # Ensure storage is linked to environment
+            az containerapp env storage set \
+              --name $ENVIRONMENT \
+              --resource-group $RESOURCE_GROUP \
+              --storage-name scoutfilestorage \
+              --azure-file-account-name "$STORAGE_ACCOUNT" \
+              --azure-file-account-key "$STORAGE_KEY" \
+              --azure-file-share-name scoutdata \
+              --access-mode ReadWrite || true
+            
+            # Create postgres with volume mount
             az containerapp create \
               --name scout-postgres \
               --resource-group $RESOURCE_GROUP \
@@ -64,6 +79,9 @@ jobs:
               --env-vars POSTGRES_USER=scout POSTGRES_PASSWORD=scout_password POSTGRES_DB=scoutdb PGDATA=/var/lib/postgresql/data/pgdata \
               --ingress internal \
               --target-port 5432
+            
+            # Add volume mount (requires separate update with YAML)
+            echo "Note: Volume mount requires manual setup - see deployment docs"
           else
             echo "PostgreSQL container already exists"
           fi

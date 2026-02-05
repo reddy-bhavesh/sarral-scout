@@ -12,8 +12,9 @@ if [[ "$DATABASE_URL" == postgresql* ]]; then
   
   # Wait up to 60 seconds for postgres
   for i in {1..30}; do
-    if pg_isready -h "$DB_HOST" -q 2>/dev/null; then
+    if nc -z "$DB_HOST" 5432 2>/dev/null; then
       echo "PostgreSQL is ready!"
+      sleep 2  # Give postgres a moment to fully initialize
       break
     fi
     echo "Waiting for PostgreSQL... ($i/30)"
