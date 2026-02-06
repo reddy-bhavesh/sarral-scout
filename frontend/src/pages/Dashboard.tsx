@@ -503,7 +503,7 @@ const Dashboard = () => {
                                             <Clock className="w-3 h-3" />
                                             {(() => {
                                                 const seconds = scan.duration_seconds || 0;
-                                                if (seconds === 0) return '-';
+                                                if (seconds <= 0) return '-';  // Handle 0 or negative
                                                 if (seconds < 60) return `${seconds}s`;
                                                 if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
                                                 return `${Math.round(seconds / 3600)}h ${Math.round((seconds % 3600) / 60)}m`;

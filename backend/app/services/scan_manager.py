@@ -51,7 +51,7 @@ class ScanManager:
                 "status": "Pending",
                 "userId": user_id,
                 "scan_number": next_scan_number,
-                "date": datetime.now()
+                "date": datetime.now(timezone.utc)  # Use UTC to match duration calculation
             }
         )
         # Start scan in background
@@ -91,6 +91,10 @@ class ScanManager:
     async def run_scan(self, scan_id: int, phases: list[str], target: str, user_id: int):
         logger.info(f"Starting scan {scan_id} for {target}")
         from app.services.event_manager import event_manager
+        
+        # Track actual start time for duration calculation
+        import time
+        scan_start_time = time.time()
         
         await self.db.scan.update(
             where={"id": scan_id},
@@ -425,11 +429,16 @@ class ScanManager:
             # Fetch full scan data for report
             scan = await self.db.scan.find_unique(where={"id": scan_id})
             
+            # Calculate duration using actual tracked start time (avoids timezone issues)
+            duration = max(0, int(time.time() - scan_start_time))
+            logger.info(f"Scan {scan_id} duration: {duration} seconds")
+            # Set duration on scan object so report can use it
+            scan.duration_seconds = duration
+            
             self.report_generator.generate_report(scan, scan_results, pdf_path)
 
             # 5. Complete Scan
-            # Calculate stats
-            duration = int((datetime.now(timezone.utc) - scan.date.replace(tzinfo=timezone.utc)).total_seconds())
+            # Use already-calculated duration
             
             critical_c = 0
             high_c = 0

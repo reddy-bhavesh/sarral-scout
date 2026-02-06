@@ -27,7 +27,7 @@ async def get_dashboard_stats(
         # We grab ID, date, status to calculate trends and chart data efficiently.
         all_scans = await db.scan.find_many(
             where={"userId": current_user.id},
-            order={"date": "desc"},
+            order={"id": "desc"},  # Order by ID (always sequential) to avoid timezone issues
         )
 
         # Filter by date ranges
@@ -171,7 +171,7 @@ async def get_scans(
         where=where_clause,
         skip=skip,
         take=limit,
-        order={"date": "desc"},
+        order={"id": "desc"},  # Order by ID (always sequential) to avoid timezone issues
     )
     
     return PaginatedScanResponse(
