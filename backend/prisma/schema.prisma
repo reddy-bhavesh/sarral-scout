@@ -55,12 +55,12 @@ model ScanResult {
   phase           String?
   parent_phase_id String? // For grouping in UI
   order_index     Int? // For sorting in UI
-  command         String?
+  command         String?   @db.Text
   status          String    @default("Pending") // Pending, Running, Completed, Failed
   exit_code       Int?
-  raw_output      String
-  output_json     String?
-  gemini_summary  String?
+  raw_output      String    @db.LongText
+  output_json     String?   @db.LongText
+  gemini_summary  String?   @db.Text
   severity        String? // Critical, High, Medium, Low, Info
   cveId           String?
   started_at      DateTime?
