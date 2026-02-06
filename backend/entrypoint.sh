@@ -3,21 +3,28 @@ set -e
 
 echo "=== Scout Backend Startup ==="
 
-# Wait for PostgreSQL to be ready (if using PostgreSQL)
-if [[ "$DATABASE_URL" == postgresql* ]]; then
-  echo "Waiting for PostgreSQL to be ready..."
+# Wait for database to be ready (if using MySQL or PostgreSQL)
+if [[ "$DATABASE_URL" == mysql* ]] || [[ "$DATABASE_URL" == postgresql* ]]; then
+  echo "Waiting for database to be ready..."
   
-  # Extract host from DATABASE_URL (format: postgresql://user:pass@host/db)
+  # Extract host from DATABASE_URL
   DB_HOST=$(echo $DATABASE_URL | sed -E 's/.*@([^/:]+).*/\1/')
   
-  # Wait up to 60 seconds for postgres
+  # Determine port based on database type
+  if [[ "$DATABASE_URL" == mysql* ]]; then
+    DB_PORT=3306
+  else
+    DB_PORT=5432
+  fi
+  
+  # Wait up to 60 seconds for database
   for i in {1..30}; do
-    if nc -z "$DB_HOST" 5432 2>/dev/null; then
-      echo "PostgreSQL is ready!"
-      sleep 2  # Give postgres a moment to fully initialize
+    if nc -z "$DB_HOST" $DB_PORT 2>/dev/null; then
+      echo "Database is ready!"
+      sleep 2  # Give database a moment to fully initialize
       break
     fi
-    echo "Waiting for PostgreSQL... ($i/30)"
+    echo "Waiting for database... ($i/30)"
     sleep 2
   done
 fi
