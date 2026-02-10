@@ -14,6 +14,9 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: write # Required to push Git tags
+
 env:
   ACR_NAME: "sarralscoutacr"
   RESOURCE_GROUP: "rg-sarral-scan"
@@ -97,10 +100,13 @@ jobs:
                            EXECUTION_MODE=local
 
       - name: Create Git Tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
           git tag "backend-$VERSION"
           git push origin "backend-$VERSION"
           echo "🏷️ Created tag: backend-$VERSION"
