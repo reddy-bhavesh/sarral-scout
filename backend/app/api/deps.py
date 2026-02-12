@@ -9,7 +9,13 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 async def get_db():
     from app.main import db
-    if not db.is_connected():
+    try:
+        await db.execute_raw("SELECT 1")
+    except Exception:
+        try:
+            await db.disconnect()
+        except Exception:
+            pass
         await db.connect()
     yield db
 

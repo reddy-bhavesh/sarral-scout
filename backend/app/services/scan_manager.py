@@ -21,15 +21,17 @@ class ScanManager:
         self.report_generator = ReportGenerator()
 
     async def _ensure_db(self):
-        """Ensure database connection is alive, reconnect if dropped."""
+        """Ensure database connection is truly alive by pinging MySQL."""
         try:
-            if not self.db.is_connected():
-                logger.warning("Database connection lost, reconnecting...")
-                await self.db.connect()
-                logger.info("Database reconnected successfully.")
-        except Exception as e:
-            logger.error(f"Failed to reconnect to database: {e}")
-            raise
+            await self.db.execute_raw("SELECT 1")
+        except Exception:
+            logger.warning("Database ping failed, performing full reconnect...")
+            try:
+                await self.db.disconnect()
+            except Exception:
+                pass
+            await self.db.connect()
+            logger.info("Database reconnected successfully.")
 
     async def create_scan(self, scan_data: ScanCreate, user_id: int):
         # Define phase priority order
