@@ -20,6 +20,17 @@ class ScanManager:
         self.gemini_analyzer = GeminiAnalyzer()
         self.report_generator = ReportGenerator()
 
+    async def _ensure_db(self):
+        """Ensure database connection is alive, reconnect if dropped."""
+        try:
+            if not self.db.is_connected():
+                logger.warning("Database connection lost, reconnecting...")
+                await self.db.connect()
+                logger.info("Database reconnected successfully.")
+        except Exception as e:
+            logger.error(f"Failed to reconnect to database: {e}")
+            raise
+
     async def create_scan(self, scan_data: ScanCreate, user_id: int):
         # Define phase priority order
         PHASE_ORDER = {
@@ -96,6 +107,7 @@ class ScanManager:
         import time
         scan_start_time = time.time()
         
+        await self._ensure_db()
         await self.db.scan.update(
             where={"id": scan_id},
             data={"status": "Running"}
@@ -130,6 +142,7 @@ class ScanManager:
                     # Format command with target and scan_dir for display purposes
                     display_command = command_template.format(target=target, scan_dir=scan_dir)
 
+                    await self._ensure_db()
                     result = await self.db.scanresult.create(
                         data={
                             "scanId": scan_id,
@@ -161,6 +174,7 @@ class ScanManager:
                         continue
 
                     # Update status to Running
+                    await self._ensure_db()
                     await self.db.scanresult.update(
                         where={"id": result_id},
                         data={
@@ -216,6 +230,7 @@ class ScanManager:
                         
                         # Update DB every 2 seconds to avoid overwhelming it
                         if (datetime.now() - last_update).total_seconds() > 2:
+                            await self._ensure_db()
                             await self.db.scanresult.update(
                                 where={"id": result.id},
                                 data={"raw_output": current_output}
@@ -230,6 +245,7 @@ class ScanManager:
                             if (datetime.now() - last_update).total_seconds() > 5:
                                 # Just touch the record or append a heartbeat marker (invisible or comment)
                                 # Or simply re-save the current output to keep the connection alive/timestamp updated
+                                await self._ensure_db()
                                 await self.db.scanresult.update(
                                     where={"id": result.id},
                                     data={"raw_output": current_output} # Keep connection alive by re-saving output
@@ -318,6 +334,7 @@ class ScanManager:
                     #    ... (logic moved to phase level)
 
                     # Final update with full output, JSON, and AI summary
+                    await self._ensure_db()
                     await self.db.scanresult.update(
                         where={"id": result.id},
                         data={
@@ -340,6 +357,7 @@ class ScanManager:
                     print(f"Starting Phase-Level Analysis for {phase}...")
                     
                     # Create a placeholder result for the analysis running state
+                    await self._ensure_db()
                     summary_result = await self.db.scanresult.create(
                         data={
                             "scanId": scan_id,
@@ -388,6 +406,7 @@ class ScanManager:
                         
                         # Update the result with completion
                         print(f"DEBUG: Updating AI analysis result {summary_result.id} to Completed")
+                        await self._ensure_db()
                         await self.db.scanresult.update(
                             where={"id": summary_result.id},
                             data={
@@ -399,6 +418,7 @@ class ScanManager:
                         )
                     else:
                         print(f"DEBUG: No successful tool outputs for {phase}, skipping analysis but marking complete.")
+                        await self._ensure_db()
                         await self.db.scanresult.update(
                             where={"id": summary_result.id},
                             data={
@@ -461,6 +481,7 @@ class ScanManager:
                     except:
                         pass
 
+            await self._ensure_db()
             await self.db.scan.update(
                 where={"id": scan_id},
                 data={
