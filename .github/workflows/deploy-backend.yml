@@ -89,6 +89,7 @@ jobs:
             --name $BACKEND_APP_NAME \
             --resource-group $RESOURCE_GROUP \
             --image $ACR_NAME.azurecr.io/$IMAGE_NAME:$VERSION \
+            --min-replicas 1 \
             --set-env-vars JWT_SECRET=secretref:jwt-secret \
                            GEMINI_API_KEY=secretref:gemini-api-key \
                            DATABRICKS_API_KEY=secretref:databricks-api-key \
