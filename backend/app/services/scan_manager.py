@@ -189,6 +189,8 @@ class ScanManager:
                     
                     # Fetch the result object for further updates
                     result = await self.db.scanresult.find_unique(where={"id": result_id})
+                    if result is None:
+                        logger.warning(f"Could not fetch result {result_id} after update, using result_id directly")
 
                     retry_count = tool_config.get("retry", 0)
                     timeout = tool_config.get("timeout", None)
@@ -213,7 +215,7 @@ class ScanManager:
                         if not file_exists:
                             print(f"Input file {input_file} missing. Skipping {tool_name}.")
                             await self.db.scanresult.update(
-                                where={"id": result.id},
+                                where={"id": result.id if result else result_id},
                                 data={
                                     "status": "Failed",
                                     "raw_output": f"Skipped: Input file '{input_file}' not found. Previous steps may have failed.",
@@ -226,17 +228,23 @@ class ScanManager:
                     current_output = ""
                     last_update = datetime.now()
 
+                    # Use result_id directly to avoid NoneType errors if result is None
+                    _current_result_id = result.id if result else result_id
+
                     async def output_callback(line: str):
                         nonlocal current_output, last_update
                         current_output += line + "\n"
                         
                         # Update DB every 2 seconds to avoid overwhelming it
                         if (datetime.now() - last_update).total_seconds() > 2:
-                            await self._ensure_db()
-                            await self.db.scanresult.update(
-                                where={"id": result.id},
-                                data={"raw_output": current_output}
-                            )
+                            try:
+                                await self._ensure_db()
+                                await self.db.scanresult.update(
+                                    where={"id": _current_result_id},
+                                    data={"raw_output": current_output}
+                                )
+                            except Exception as e:
+                                logger.warning(f"Output callback DB update failed: {e}")
                             last_update = datetime.now()
 
                     # Heartbeat Task
@@ -245,13 +253,14 @@ class ScanManager:
                             await asyncio.sleep(5)
                             # Only update if no output update has happened recently
                             if (datetime.now() - last_update).total_seconds() > 5:
-                                # Just touch the record or append a heartbeat marker (invisible or comment)
-                                # Or simply re-save the current output to keep the connection alive/timestamp updated
-                                await self._ensure_db()
-                                await self.db.scanresult.update(
-                                    where={"id": result.id},
-                                    data={"raw_output": current_output} # Keep connection alive by re-saving output
-                                )
+                                try:
+                                    await self._ensure_db()
+                                    await self.db.scanresult.update(
+                                        where={"id": _current_result_id},
+                                        data={"raw_output": current_output}
+                                    )
+                                except Exception as e:
+                                    logger.warning(f"Heartbeat DB update failed: {e}")
 
                     # Start Heartbeat
                     heartbeat = asyncio.create_task(heartbeat_task())
@@ -338,7 +347,7 @@ class ScanManager:
                     # Final update with full output, JSON, and AI summary
                     await self._ensure_db()
                     await self.db.scanresult.update(
-                        where={"id": result.id},
+                        where={"id": _current_result_id},
                         data={
                             "raw_output": sanitized_output,
                             "output_json": json.dumps(output_json_obj) if output_json_obj else None,
@@ -350,8 +359,11 @@ class ScanManager:
                     )
                     
                     # Refresh result to get updated data
-                    result = await self.db.scanresult.find_unique(where={"id": result.id})
-                    scan_results.append(result)
+                    result = await self.db.scanresult.find_unique(where={"id": _current_result_id})
+                    if result:
+                        scan_results.append(result)
+                    else:
+                        logger.warning(f"Could not refresh result {_current_result_id} after final update")
 
                 # --- PHASE LEVEL ANALYSIS ---
                 # After all tools in the phase are done, aggregate outputs and run AI
@@ -515,15 +527,25 @@ class ScanManager:
             logger.error(f"Scan {scan_id} failed: {e}", exc_info=True)
             import traceback
             traceback.print_exc()
+            # Emit SSE event FIRST so frontend immediately shows "Failed"
             try:
-                if self.db.is_connected():
+                await event_manager.emit(user_id, "SCAN_UPDATE", {"status": "Failed", "scanId": scan_id})
+            except Exception:
+                pass
+            # Retry DB update with delays in case DB is temporarily unreachable
+            for attempt in range(3):
+                try:
+                    await self._ensure_db()
                     await self.db.scan.update(
                         where={"id": scan_id},
                         data={"status": "Failed"}
                     )
-                    await event_manager.emit(user_id, "SCAN_UPDATE", {"status": "Failed", "scanId": scan_id})
-            except:
-                pass
+                    logger.info(f"Scan {scan_id} status updated to Failed in DB")
+                    break
+                except Exception as db_err:
+                    logger.warning(f"Failed to update scan {scan_id} status (attempt {attempt + 1}/3): {db_err}")
+                    if attempt < 2:
+                        await asyncio.sleep(5)  # Wait 5s before retry
         finally:
             if scan_id in ScanManager._active_scans:
                 del ScanManager._active_scans[scan_id]
