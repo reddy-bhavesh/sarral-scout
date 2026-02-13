@@ -73,7 +73,7 @@ class GeminiAnalyzer:
     def __init__(self):
         if settings.GEMINI_API_KEY:
             self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            self.model_name = "gemini-2.5-pro"
+            self.model_name = "gemini-3-flash-preview"
         else:
             self.client = None
             print("Warning: GEMINI_API_KEY not set. Analysis skipped.", file=sys.stderr)
@@ -92,7 +92,7 @@ Rules:
 3. DO NOT invent vulnerabilities.
 4. DO NOT duplicate similar findings. If similar, group them.
 5. USE EXACT FIELD NAMES from the schema.
-6. USE 2025 OWASP Top 10 and CWE identifiers where applicable.
+6. USE OWASP Top 10 and CWE identifiers where applicable.
 7. SEVERITY MUST FOLLOW THESE RULES:
 
    Critical:
@@ -126,7 +126,7 @@ Rules:
      - Technology enumeration
 
 8. Severity = highest applicable category.
-9. All findings must include 2025 OWASP + CWE mapping.
+9. All findings must include OWASP + CWE mapping.
 10. Format MUST follow schema.
         """
 

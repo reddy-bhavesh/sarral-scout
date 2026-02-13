@@ -28,7 +28,7 @@ class ScanManager:
                 await self.db.connect()
                 logger.info("[ScanManager] DB reconnected.")
             else:
-                await self.db.execute_raw("SELECT 1")
+                await self.db.query_raw("SELECT 1")
         except Exception as e:
             logger.error(f"[ScanManager] DB connection test failed: {e}. Reconnecting...")
             try:

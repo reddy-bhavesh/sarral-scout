@@ -8,7 +8,8 @@ from app.models.user import UserResponse
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 async def get_db():
-    from app.main import db
+    from app.main import db, ensure_db_connected
+    await ensure_db_connected()
     yield db
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Prisma = Depends(get_db)) -> UserResponse:

@@ -22,7 +22,7 @@ async def ensure_db_connected():
             logger.info("Database reconnected successfully.")
         else:
             # Test the connection is actually alive (not just "thinks" it's connected)
-            await db.execute_raw("SELECT 1")
+            await db.query_raw("SELECT 1")
     except Exception as e:
         logger.error(f"Database connection test failed: {e}. Attempting reconnect...")
         try:
@@ -59,25 +59,6 @@ async def lifespan(app: FastAPI):
     logger.info("Database disconnected on shutdown.")
 
 app = FastAPI(title="Pentest Web App API", version="1.0.0", lifespan=lifespan)
-
-
-@app.middleware("http")
-async def db_reconnect_middleware(request: Request, call_next):
-    """Middleware to ensure database connection is alive before processing requests."""
-    # Skip reconnect check for static files and root endpoint
-    if request.url.path.startswith("/reports") or request.url.path == "/":
-        return await call_next(request)
-    
-    try:
-        await ensure_db_connected()
-    except Exception as e:
-        logger.critical(f"Cannot establish database connection: {e}")
-        return JSONResponse(
-            status_code=503,
-            content={"detail": "Database unavailable. Please try again shortly."}
-        )
-    
-    return await call_next(request)
 
 
 app.add_middleware(
