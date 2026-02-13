@@ -9,14 +9,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 async def get_db():
     from app.main import db
-    try:
-        await db.execute_raw("SELECT 1")
-    except Exception:
-        try:
-            await db.disconnect()
-        except Exception:
-            pass
-        await db.connect()
     yield db
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Prisma = Depends(get_db)) -> UserResponse:
