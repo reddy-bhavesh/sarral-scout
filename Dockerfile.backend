@@ -87,14 +87,14 @@ RUN gem install addressable ipaddr --no-document && \
 # Create wordlists directory
 RUN mkdir -p /usr/share/wordlists/dirb /usr/share/wordlists/SecLists
 
-# Download Dirb common.txt
-RUN wget -q https://raw.githubusercontent.com/v0re/dirb/master/wordlists/common.txt \
-    -O /usr/share/wordlists/dirb/common.txt
-
 # Clone SecLists (essential for comprehensive scanning)
 # Note: This adds ~500MB to image size. Comment out if not needed.
 RUN git clone --depth 1 https://github.com/danielmiessler/SecLists.git /usr/share/wordlists/SecLists && \
     ln -s /usr/share/wordlists/SecLists /usr/share/seclists
+
+# Dirb common.txt — sourced from SecLists (the old v0re/dirb raw URL is dead/404)
+RUN cp /usr/share/wordlists/SecLists/Discovery/Web-Content/common.txt \
+    /usr/share/wordlists/dirb/common.txt
 
 # ============================================================================
 # Application Setup
