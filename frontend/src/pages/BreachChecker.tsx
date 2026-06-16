@@ -4,6 +4,7 @@ import PageTransition from '../components/PageTransition';
 import { Search, ShieldAlert, AlertTriangle, CheckCircle, Loader2, Mail, Calendar, Database, Lock, Globe, Users, TrendingUp, Building } from 'lucide-react';
 import api from '../api/axios';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { chart } from '../theme/palette';
 
 interface BreachDetail {
     breach: string;
@@ -38,9 +39,9 @@ interface BreachAnalytics {
     industry_breakdown?: Record<string, number>;
 }
 
-// Chart colors
-const PASSWORD_COLORS = ['#ef4444', '#f97316', '#22c55e', '#6b7280'];
-const INDUSTRY_COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#6366f1'];
+// Chart colors (sourced from the central palette)
+const PASSWORD_COLORS = chart.password;
+const INDUSTRY_COLORS = chart.industry;
 
 const BreachChecker = () => {
     const [email, setEmail] = useState('');
@@ -134,8 +135,8 @@ const BreachChecker = () => {
                             disabled={loading || !email}
                             className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all ${
                                 loading || !email
-                                    ? 'bg-blue-600/50 text-white/50 cursor-not-allowed'
-                                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20'
+                                    ? 'bg-red-600/50 text-white/50 cursor-not-allowed'
+                                    : 'btn-cta'
                             }`}
                         >
                             {loading ? (
@@ -273,7 +274,7 @@ const BreachChecker = () => {
                                                         ))}
                                                     </Pie>
                                                     <Tooltip 
-                                                        contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
+                                                        contentStyle={{ backgroundColor: chart.tooltipBg, border: `1px solid ${chart.tooltipBorder}`, borderRadius: '8px' }}
                                                     />
                                                 </PieChart>
                                             </ResponsiveContainer>
@@ -315,7 +316,7 @@ const BreachChecker = () => {
                                                             ))}
                                                     </Pie>
                                                     <Tooltip 
-                                                        contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
+                                                        contentStyle={{ backgroundColor: chart.tooltipBg, border: `1px solid ${chart.tooltipBorder}`, borderRadius: '8px' }}
                                                         formatter={(value) => [`${Number(value).toLocaleString()} records`, 'Exposed']}
                                                     />
                                                 </PieChart>
@@ -371,35 +372,35 @@ const BreachChecker = () => {
                                         >
                                             <defs>
                                                 <linearGradient id="colorBreaches" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                                                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                                                    <stop offset="5%" stopColor={chart.area} stopOpacity={0.3}/>
+                                                    <stop offset="95%" stopColor={chart.area} stopOpacity={0}/>
                                                 </linearGradient>
                                             </defs>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
-                                            <XAxis 
-                                                dataKey="year" 
-                                                stroke="#6b7280" 
-                                                tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                            <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} opacity={0.3} />
+                                            <XAxis
+                                                dataKey="year"
+                                                stroke={chart.axis}
+                                                tick={{ fill: chart.axisTick, fontSize: 12 }}
                                             />
-                                            <YAxis 
-                                                stroke="#6b7280" 
-                                                tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                            <YAxis
+                                                stroke={chart.axis}
+                                                tick={{ fill: chart.axisTick, fontSize: 12 }}
                                                 allowDecimals={false}
                                             />
-                                            <Tooltip 
-                                                contentStyle={{ 
-                                                    backgroundColor: '#1f2937', 
-                                                    border: '1px solid #374151',
+                                            <Tooltip
+                                                contentStyle={{
+                                                    backgroundColor: chart.tooltipBg,
+                                                    border: `1px solid ${chart.tooltipBorder}`,
                                                     borderRadius: '8px',
-                                                    color: '#fff'
+                                                    color: chart.tooltipText
                                                 }}
-                                                labelStyle={{ color: '#9ca3af' }}
+                                                labelStyle={{ color: chart.axisTick }}
                                                 formatter={(value) => [`${value} breach${value !== 1 ? 'es' : ''}`, 'Count']}
                                             />
                                             <Area 
-                                                type="monotone" 
-                                                dataKey="count" 
-                                                stroke="#ef4444" 
+                                                type="monotone"
+                                                dataKey="count"
+                                                stroke={chart.area}
                                                 strokeWidth={2}
                                                 fillOpacity={1} 
                                                 fill="url(#colorBreaches)" 

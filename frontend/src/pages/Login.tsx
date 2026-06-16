@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Shield, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "../config/msalConfig";
+import { microsoft } from '../theme/palette';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -84,7 +85,7 @@ const Login = () => {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-[#0B1120] text-gray-900 dark:text-white relative overflow-hidden transition-colors duration-300">
+        <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white relative overflow-hidden transition-colors duration-300">
             {/* Background Effects */}
             <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
             <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -177,7 +178,7 @@ const Login = () => {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 focus:ring-blue-500 transition-all disabled:opacity-70 disabled:cursor-not-allowed mt-6"
+                            className="btn-cta w-full flex justify-center py-3 px-4 border border-transparent rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 focus:ring-red-500 disabled:opacity-70 disabled:cursor-not-allowed mt-6"
                         >
                             {isLoading ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -206,10 +207,10 @@ const Login = () => {
                         ) : (
                             <>
                                 <svg className="w-5 h-5" viewBox="0 0 21 21">
-                                    <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
-                                    <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
-                                    <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
-                                    <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                                    <rect x="1" y="1" width="9" height="9" fill={microsoft.red}/>
+                                    <rect x="1" y="11" width="9" height="9" fill={microsoft.blue}/>
+                                    <rect x="11" y="1" width="9" height="9" fill={microsoft.green}/>
+                                    <rect x="11" y="11" width="9" height="9" fill={microsoft.yellow}/>
                                 </svg>
                                 <span className="font-medium text-gray-700 dark:text-gray-200">
                                     Sign in with Microsoft

@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useCallback } from 'react';
+import { network } from '../theme/palette';
 
 interface Node {
     x: number;
@@ -24,10 +25,10 @@ const NetworkGrid: React.FC<NetworkGridProps> = ({ className = '' }) => {
     const NODE_COUNT = 80;
     const CONNECTION_DISTANCE = 150;
     const MOUSE_RADIUS = 180;
-    const NODE_COLOR = 'rgba(59, 130, 246, 0.8)'; // Blue-500
-    const NODE_COLOR_HOVER = 'rgba(147, 51, 234, 0.9)'; // Purple-600
-    const LINE_COLOR = 'rgba(59, 130, 246, 0.15)';
-    const LINE_COLOR_ACTIVE = 'rgba(147, 51, 234, 0.4)';
+    const NODE_COLOR = network.node;
+    const NODE_COLOR_HOVER = network.nodeHover;
+    const LINE_COLOR = network.line;
+    const LINE_COLOR_ACTIVE = network.lineActive;
 
     const initNodes = useCallback((width: number, height: number) => {
         const nodes: Node[] = [];
@@ -138,8 +139,8 @@ const NetworkGrid: React.FC<NetworkGridProps> = ({ className = '' }) => {
                     node.x, node.y, node.radius,
                     node.x, node.y, node.radius * 3
                 );
-                gradient.addColorStop(0, 'rgba(147, 51, 234, 0.3)');
-                gradient.addColorStop(1, 'rgba(147, 51, 234, 0)');
+                gradient.addColorStop(0, network.glowInner);
+                gradient.addColorStop(1, network.glowOuter);
                 ctx.fillStyle = gradient;
                 ctx.fill();
             }

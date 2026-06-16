@@ -1,0 +1,163 @@
+name: Deploy to Azure
+
+# Builds changed images in the cloud (ACR Tasks — no local Docker) and deploys
+# the Container Apps stack via Bicep. Auth is GitHub OIDC -> Azure (no stored
+# client secret). See infra/main.bicep and docs/DEPLOYMENT.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - backend/**
+      - frontend/**
+      - Dockerfile.backend
+      - Dockerfile.frontend
+      - nginx.conf.template
+      - infra/**
+      - .github/workflows/deploy.yml
+  workflow_dispatch:
+    inputs:
+      force_all:
+        description: Build both images regardless of changes (use for the first deploy)
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RESOURCE_GROUP: rg-scout
+  ACR_NAME: scoutacr
+  NAME_PREFIX: scout
+  LOCATION: centralindia
+
+jobs:
+  # ---------------------------------------------------------------------------
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - backend/**
+              - Dockerfile.backend
+            frontend:
+              - frontend/**
+              - Dockerfile.frontend
+              - nginx.conf.template
+
+  # ---------------------------------------------------------------------------
+  build:
+    needs: changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend_image: ${{ steps.images.outputs.backend_image }}
+      frontend_image: ${{ steps.images.outputs.frontend_image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve flags
+        id: flags
+        run: |
+          FORCE='${{ github.event.inputs.force_all }}'
+          BUILD_BACKEND='${{ needs.changes.outputs.backend }}'
+          BUILD_FRONTEND='${{ needs.changes.outputs.frontend }}'
+          if [ "$FORCE" = "true" ]; then BUILD_BACKEND=true; BUILD_FRONTEND=true; fi
+          echo "backend=$BUILD_BACKEND"  >> "$GITHUB_OUTPUT"
+          echo "frontend=$BUILD_FRONTEND" >> "$GITHUB_OUTPUT"
+
+      - name: Build backend image
+        if: steps.flags.outputs.backend == 'true'
+        run: |
+          az acr build \
+            --registry "$ACR_NAME" \
+            --image "scout-backend:${{ github.sha }}" \
+            --image "scout-backend:latest" \
+            --file Dockerfile.backend .
+
+      - name: Build frontend image
+        if: steps.flags.outputs.frontend == 'true'
+        run: |
+          az acr build \
+            --registry "$ACR_NAME" \
+            --image "scout-frontend:${{ github.sha }}" \
+            --image "scout-frontend:latest" \
+            --file Dockerfile.frontend \
+            --build-arg VITE_MICROSOFT_CLIENT_ID="${{ vars.VITE_MICROSOFT_CLIENT_ID }}" \
+            --build-arg VITE_MICROSOFT_AUTHORITY="${{ vars.VITE_MICROSOFT_AUTHORITY }}" \
+            --build-arg VITE_MICROSOFT_REDIRECT_URI="${{ vars.VITE_MICROSOFT_REDIRECT_URI }}" \
+            .
+
+      # Use the freshly-built :<sha> tag when a component was rebuilt this run;
+      # otherwise point at :latest (the last image already in ACR).
+      - name: Compute image references
+        id: images
+        run: |
+          LOGIN_SERVER="${ACR_NAME}.azurecr.io"
+          if [ "${{ steps.flags.outputs.backend }}" = "true" ]; then
+            echo "backend_image=${LOGIN_SERVER}/scout-backend:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend_image=${LOGIN_SERVER}/scout-backend:latest" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "${{ steps.flags.outputs.frontend }}" = "true" ]; then
+            echo "frontend_image=${LOGIN_SERVER}/scout-frontend:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend_image=${LOGIN_SERVER}/scout-frontend:latest" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ---------------------------------------------------------------------------
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy infrastructure (Bicep)
+        id: deploy
+        env:
+          NAME_PREFIX: ${{ env.NAME_PREFIX }}
+          ACR_NAME: ${{ env.ACR_NAME }}
+          BACKEND_IMAGE: ${{ needs.build.outputs.backend_image }}
+          FRONTEND_IMAGE: ${{ needs.build.outputs.frontend_image }}
+          BACKEND_MIN_REPLICAS: ${{ vars.BACKEND_MIN_REPLICAS || '0' }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DATABRICKS_API_KEY: ${{ secrets.DATABRICKS_API_KEY }}
+          DATABRICKS_API_BASE: ${{ secrets.DATABRICKS_API_BASE }}
+          DATABRICKS_MODEL: ${{ vars.DATABRICKS_MODEL || 'databricks-gemini-3-pro' }}
+          MICROSOFT_CLIENT_ID: ${{ vars.VITE_MICROSOFT_CLIENT_ID }}
+          MICROSOFT_TENANT_ID: ${{ vars.MICROSOFT_TENANT_ID || 'organizations' }}
+          ENABLE_MICROSOFT_SSO: ${{ vars.ENABLE_MICROSOFT_SSO || 'false' }}
+        run: |
+          az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "scout-$(echo ${{ github.sha }} | cut -c1-8)" \
+            --parameters infra/main.bicepparam
+
+      - name: Show app URL
+        run: |
+          FQDN=$(az containerapp show -n "${NAME_PREFIX}-frontend" -g "$RESOURCE_GROUP" \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "### Scout deployed :rocket:" >> "$GITHUB_STEP_SUMMARY"
+          echo "Frontend: https://$FQDN" >> "$GITHUB_STEP_SUMMARY"

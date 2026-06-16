@@ -125,8 +125,8 @@ const NewScan = () => {
                         disabled={loading || !target || selectedPhases.length === 0 || sshStatus === 'error'}
                         className={`px-6 py-2.5 rounded-lg font-medium flex items-center gap-2 transition-all ${
                             loading || !target || selectedPhases.length === 0 || sshStatus === 'error'
-                                ? 'bg-blue-600/50 text-white/50 cursor-not-allowed'
-                                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20'
+                                ? 'bg-red-600/50 text-white/50 cursor-not-allowed'
+                                : 'btn-cta'
                         }`}
                     >
                         {loading ? (

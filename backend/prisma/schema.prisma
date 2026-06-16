@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -55,12 +55,12 @@ model ScanResult {
   phase           String?
   parent_phase_id String? // For grouping in UI
   order_index     Int? // For sorting in UI
-  command         String?   @db.Text
+  command         String?
   status          String    @default("Pending") // Pending, Running, Completed, Failed
   exit_code       Int?
-  raw_output      String    @db.LongText
-  output_json     String?   @db.LongText
-  gemini_summary  String?   @db.Text
+  raw_output      String
+  output_json     String?
+  gemini_summary  String?
   severity        String? // Critical, High, Medium, Low, Info
   cveId           String?
   started_at      DateTime?

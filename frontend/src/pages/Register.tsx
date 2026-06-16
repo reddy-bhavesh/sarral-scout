@@ -76,7 +76,7 @@ const Register = () => {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-[#0B1120] text-gray-900 dark:text-white relative overflow-hidden py-10 transition-colors duration-300">
+        <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white relative overflow-hidden py-10 transition-colors duration-300">
             {/* Background Effects */}
             <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
             <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -255,7 +255,7 @@ const Register = () => {
                         <button
                             type="submit"
                             disabled={isLoading || !Object.values(passwordRules).every(Boolean)}
-                            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 focus:ring-blue-500 transition-all disabled:opacity-70 disabled:cursor-not-allowed mt-6"
+                            className="btn-cta w-full flex justify-center py-3 px-4 border border-transparent rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 focus:ring-red-500 disabled:opacity-70 disabled:cursor-not-allowed mt-6"
                         >
                             {isLoading ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>

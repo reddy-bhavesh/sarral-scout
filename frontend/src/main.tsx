@@ -5,6 +5,10 @@ import App from './App.tsx'
 import { MsalProvider } from "@azure/msal-react";
 import * as msal from "@azure/msal-browser";
 import { msalConfig } from "./config/msalConfig";
+import { applyCssVars } from "./theme/palette";
+
+// Publish palette colors that stylesheets consume (index.css scrollbar).
+applyCssVars();
 
 // Initialize MSAL instance
 const msalInstance = new msal.PublicClientApplication(msalConfig);

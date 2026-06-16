@@ -1,27 +1,26 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
     Shield, Search, Activity, FileText, Zap, Sparkles,
     Target, ServerCog, Brain, CheckCircle, ArrowRight, 
     Star, Code2, Moon, Sun, ChevronDown, Users,
     TrendingUp, Rocket, BarChart, CheckCircle2
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import NetworkGrid from '../components/NetworkGrid';
+import { effect } from '../theme/palette';
 
 const Landing = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { theme, toggleTheme } = useTheme();
-    const { scrollY } = useScroll();
+    // The page scrolls inside this container (not the window) so its scrollbar
+    // starts below the top nav instead of running the full viewport height.
+    const scrollRef = useRef<HTMLDivElement>(null);
     const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
     const [openFaq, setOpenFaq] = useState<number | null>(null);
-    
-    // Parallax effect for background
-    const y1 = useTransform(scrollY, [0, 300], [0, 100]);
-    const y2 = useTransform(scrollY, [0, 300], [0, -100]);
 
     const handleGetStarted = () => {
         if (user) {
@@ -39,54 +38,62 @@ const Landing = () => {
         }
     };
 
+    // Feature accents stay on-palette: a cyan/blue cool rotation (bright cyan
+    // pops on the dark cards) with one red highlight on the flagship AI feature.
     const features = [
         {
             icon: Search,
             title: 'Multi-Phase Reconnaissance',
             description: 'Advanced passive & active recon to gather intelligence stealthily',
-            color: 'from-blue-500 to-cyan-500',
+            color: 'from-blue-500 to-cyan-300',
             iconColor: 'text-blue-500',
+            iconBg: 'bg-blue-500/10',
             bgHover: 'group-hover:bg-blue-500/5'
         },
         {
             icon: Target,
             title: 'Asset Discovery',
             description: 'Automated discovery of subdomains, endpoints, and attack surfaces',
-            color: 'from-purple-500 to-pink-500',
-            iconColor: 'text-purple-500',
-            bgHover: 'group-hover:bg-purple-500/5'
+            color: 'from-cyan-300 to-blue-500',
+            iconColor: 'text-cyan-400',
+            iconBg: 'bg-cyan-300/15',
+            bgHover: 'group-hover:bg-cyan-300/5'
         },
         {
             icon: ServerCog,
             title: '15+ Security Tools',
             description: 'Nmap, Nuclei, SQLMap, FFUF, Subfinder, and many more integrated',
-            color: 'from-green-500 to-emerald-500',
-            iconColor: 'text-green-500',
-            bgHover: 'group-hover:bg-green-500/5'
+            color: 'from-blue-400 to-cyan-200',
+            iconColor: 'text-blue-500',
+            iconBg: 'bg-blue-400/10',
+            bgHover: 'group-hover:bg-blue-400/5'
         },
         {
             icon: Brain,
             title: 'AI-Powered Analysis',
             description: 'Gemini AI identifies vulnerabilities with intelligent context',
-            color: 'from-orange-500 to-red-500',
-            iconColor: 'text-orange-500',
-            bgHover: 'group-hover:bg-orange-500/5'
+            color: 'from-red-500 to-red-700',
+            iconColor: 'text-red-500',
+            iconBg: 'bg-red-500/10',
+            bgHover: 'group-hover:bg-red-500/5'
         },
         {
             icon: Activity,
             title: 'Real-Time Monitoring',
             description: 'Live output streaming and progress tracking for all scans',
-            color: 'from-red-500 to-rose-500',
-            iconColor: 'text-red-500',
-            bgHover: 'group-hover:bg-red-500/5'
+            color: 'from-blue-500 to-cyan-300',
+            iconColor: 'text-cyan-400',
+            iconBg: 'bg-cyan-300/15',
+            bgHover: 'group-hover:bg-cyan-300/5'
         },
         {
             icon: FileText,
             title: 'Professional Reports',
             description: 'Auto-generated PDF reports with detailed actionable insights',
-            color: 'from-yellow-500 to-amber-500',
-            iconColor: 'text-yellow-500',
-            bgHover: 'group-hover:bg-yellow-500/5'
+            color: 'from-cyan-300 to-blue-500',
+            iconColor: 'text-blue-500',
+            iconBg: 'bg-blue-500/10',
+            bgHover: 'group-hover:bg-blue-500/5'
         }
     ];
 
@@ -105,50 +112,33 @@ const Landing = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-[#0B1120] text-gray-900 dark:text-white transition-colors duration-300 overflow-hidden">
+        <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white transition-colors duration-300 overflow-hidden">
             {/* Network Grid Background - Only visible in dark mode */}
             <div className="hidden dark:block">
                 <NetworkGrid />
             </div>
-            
-            
-            
-            {/* Animated Background Elements */}
-            <div className="fixed inset-0 pointer-events-none z-0">
-                <motion.div
-                    style={{ y: y1 }}
-                    className="absolute top-20 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"
-                    transition={{ type: "spring", stiffness: 50, damping: 20 }}
-                />
-                <motion.div
-                    style={{ y: y2 }}
-                    className="absolute top-40 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"
-                    transition={{ type: "spring", stiffness: 50, damping: 20 }}
-                />
-                <motion.div
-                    style={{ y: y1 }}
-                    className="absolute bottom-20 left-1/3 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl"
-                />
-            </div>
 
-            {/* Main Content Wrapper - Above all background effects */}
-            <div className="relative z-10">
+            {/* Subtle dot-grid texture - light mode only (dark mode has the grid above) */}
+            <div className="fixed inset-0 z-0 dark:hidden bg-dots pointer-events-none" aria-hidden="true" />
+
+            {/* Nav stays in normal flow at the top (not fixed) so the scroll
+                container below it owns the scrollbar, starting under the nav. */}
             <motion.nav
                 initial={{ y: -100 }}
                 animate={{ y: 0 }}
                 transition={{ duration: 0.6, ease: "easeOut" }}
-                className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800"
+                className="relative z-50 shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800"
             >
                 <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
                     <motion.div
                         whileHover={{ scale: 1.05 }}
                         className="flex items-center gap-3 cursor-pointer"
-                        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                        onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
                     >
                         <div className="p-2 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
                             <Shield className="w-6 h-6 text-white fill-current" />
                         </div>
-                        <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Scout</span>
+                        <span className="text-xl font-bold text-gradient-brand">Scout</span>
                     </motion.div>
 
                     <div className="flex items-center gap-4">
@@ -186,10 +176,10 @@ const Landing = () => {
                             Sign In
                         </motion.button>
                         <motion.button
-                            whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(59, 130, 246, 0.4)" }}
+                            whileHover={{ scale: 1.05, boxShadow: `0 20px 40px ${effect.glowRed}` }}
                             whileTap={{ scale: 0.95 }}
                             onClick={handleGetStarted}
-                            className="px-5 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-sm font-bold rounded-lg shadow-lg shadow-blue-500/30 transition-all"
+                            className="btn-cta px-5 py-2 text-sm font-bold rounded-lg"
                         >
                             Get Started
                         </motion.button>
@@ -197,8 +187,11 @@ const Landing = () => {
                 </div>
             </motion.nav>
 
+            {/* Scrollable content — the scrollbar lives here, below the nav. */}
+            <div ref={scrollRef} className="relative z-10 flex-1 overflow-y-auto">
+
             {/* Hero Section */}
-            <section className="relative pt-32 pb-24 px-6">
+            <section className="relative pt-16 pb-24 px-6">
                 <div className="max-w-6xl mx-auto text-center relative z-10">
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
@@ -209,7 +202,7 @@ const Landing = () => {
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ type: "spring", stiffness: 150, damping: 12, delay: 0.2 }}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-full text-blue-600 dark:text-blue-400 text-sm font-medium mb-8"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-300/10 to-blue-500/10 border border-cyan-300/30 rounded-full text-blue-600 dark:text-cyan-300 text-sm font-medium mb-8"
                         >
                             <Sparkles className="w-4 h-4" />
                             AI-Powered Security Testing Platform
@@ -221,7 +214,7 @@ const Landing = () => {
                             transition={{ type: "spring", stiffness: 100, damping: 15, delay: 0.3 }}
                             className="text-5xl md:text-6xl lg:text-7xl font-black mb-6 leading-tight"
                         >
-                            <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent animate-gradient">
+                            <span className="text-gradient-brand animate-gradient">
                                 Enterprise-Grade
                             </span>
                             <br />
@@ -234,8 +227,8 @@ const Landing = () => {
                             transition={{ type: "spring", stiffness: 100, damping: 20, delay: 0.4 }}
                             className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto mb-10 leading-relaxed"
                         >
-                            Comprehensive penetration testing with <span className="font-bold text-blue-600 dark:text-blue-400">15+ integrated tools</span>, 
-                            real-time monitoring, and <span className="font-bold text-purple-600 dark:text-purple-400">AI-powered analysis</span>—all in one platform.
+                            Comprehensive penetration testing with <span className="font-bold text-blue-600 dark:text-cyan-300">15+ integrated tools</span>,
+                            real-time monitoring, and <span className="font-bold text-red-600 dark:text-red-500">AI-powered analysis</span>—all in one platform.
                         </motion.p>
 
                         <motion.div
@@ -245,18 +238,18 @@ const Landing = () => {
                             className="flex flex-col sm:flex-row items-center justify-center gap-4"
                         >
                             <motion.button
-                                whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(59, 130, 246, 0.4)" }}
+                                whileHover={{ scale: 1.05, boxShadow: `0 20px 40px ${effect.glowRed}` }}
                                 whileTap={{ scale: 0.95 }}
                                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
                                 onClick={handleGetStarted}
-                                className="group px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-2xl shadow-blue-500/40 transition-all flex items-center gap-2"
+                                className="btn-cta group px-8 py-4 font-bold rounded-xl flex items-center gap-2"
                             >
                                 <Zap className="w-5 h-5 fill-current" />
                                 Start Scanning Now
                                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                             </motion.button>
                             <motion.button
-                                whileHover={{ scale: 1.05, borderColor: "rgb(147, 51, 234)" }}
+                                whileHover={{ scale: 1.05, borderColor: effect.borderHover }}
                                 whileTap={{ scale: 0.95 }}
                                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
                                 onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
@@ -294,7 +287,7 @@ const Landing = () => {
             </section>
 
             {/* Features Section */}
-            <section id="features" className="py-20 px-6 bg-white/50 dark:bg-gray-900/30 backdrop-blur-sm relative">
+            <section id="features" className="py-20 px-6 bg-blue-50/70 dark:bg-gray-900/30 backdrop-blur-sm relative">
                 <div className="max-w-6xl mx-auto relative z-10">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -304,7 +297,7 @@ const Landing = () => {
                         className="text-center mb-16"
                     >
                         <h2 className="text-4xl md:text-5xl font-bold mb-4">
-                            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            <span className="text-gradient-brand">
                                 Everything You Need
                             </span>
                         </h2>
@@ -338,7 +331,7 @@ const Landing = () => {
                                             scale: hoveredFeature === index ? 1.1 : 1
                                         }}
                                         transition={{ duration: 0.5 }}
-                                        className={`inline-flex p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 mb-5 group-hover:shadow-lg transition-all`}
+                                        className={`inline-flex p-4 rounded-xl ${feature.iconBg} mb-5 group-hover:shadow-lg transition-all`}
                                     >
                                         <feature.icon className={`w-7 h-7 ${feature.iconColor}`} />
                                     </motion.div>
@@ -368,7 +361,7 @@ const Landing = () => {
                         className="text-center mb-16"
                     >
                         <h2 className="text-4xl md:text-5xl font-bold mb-4">
-                            How <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Scout Works</span>
+                            How <span className="text-gradient-brand">Scout Works</span>
                         </h2>
                         <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
                             From target to report in 4 simple steps
@@ -422,7 +415,7 @@ const Landing = () => {
             </section>
 
             {/* Product Preview Section */}
-            <section className="py-20 px-6 bg-white/50 dark:bg-gray-900/30 backdrop-blur-sm">
+            <section className="py-20 px-6 bg-blue-50/70 dark:bg-gray-900/30 backdrop-blur-sm">
                 <div className="max-w-6xl mx-auto">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -432,7 +425,7 @@ const Landing = () => {
                         className="text-center mb-16"
                     >
                         <h2 className="text-4xl md:text-5xl font-bold mb-4">
-                            <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                            <span className="text-gradient-brand">
                                 Dashboard Preview
                             </span>
                         </h2>
@@ -450,9 +443,9 @@ const Landing = () => {
                     >
                         {/* Realistic Dashboard Mockup */}
                         <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-1">
-                            <div className="w-full bg-[#0B1120] rounded-2xl flex overflow-hidden" style={{ minHeight: '500px' }}>
+                            <div className="w-full bg-gray-950 rounded-2xl flex overflow-hidden" style={{ minHeight: '500px' }}>
                                 {/* Sidebar */}
-                                <div className="w-40 bg-[#0f172a] border-r border-gray-800 p-3 hidden md:flex flex-col flex-shrink-0">
+                                <div className="w-40 bg-gray-950 border-r border-gray-800 p-3 hidden md:flex flex-col flex-shrink-0">
                                     <div className="flex items-center gap-2 mb-6">
                                         <div className="p-1 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg">
                                             <Shield className="w-3 h-3 text-white" />
@@ -491,7 +484,7 @@ const Landing = () => {
 
                                     {/* Stats Cards */}
                                     <div className="grid grid-cols-4 gap-2 mb-4">
-                                        <div className="bg-[#1e293b] rounded-lg p-2">
+                                        <div className="bg-gray-800 rounded-lg p-2">
                                             <div className="flex items-center gap-1 mb-1">
                                                 <Activity className="w-3 h-3 text-blue-500" />
                                                 <span className="text-xs text-gray-400">Total Scans</span>
@@ -499,7 +492,7 @@ const Landing = () => {
                                             <div className="text-lg font-bold text-white">136</div>
                                             <div className="text-xs text-green-500">↑ 100%</div>
                                         </div>
-                                        <div className="bg-[#1e293b] rounded-lg p-2">
+                                        <div className="bg-gray-800 rounded-lg p-2">
                                             <div className="flex items-center gap-1 mb-1">
                                                 <FileText className="w-3 h-3 text-blue-500" />
                                                 <span className="text-xs text-gray-400">Running</span>
@@ -507,7 +500,7 @@ const Landing = () => {
                                             <div className="text-lg font-bold text-white">0</div>
                                             <div className="text-xs text-gray-500">No change</div>
                                         </div>
-                                        <div className="bg-[#1e293b] rounded-lg p-2">
+                                        <div className="bg-gray-800 rounded-lg p-2">
                                             <div className="flex items-center gap-1 mb-1">
                                                 <CheckCircle className="w-3 h-3 text-green-500" />
                                                 <span className="text-xs text-gray-400">Completed</span>
@@ -515,7 +508,7 @@ const Landing = () => {
                                             <div className="text-lg font-bold text-white">114</div>
                                             <div className="text-xs text-green-500">↑ 100%</div>
                                         </div>
-                                        <div className="bg-[#1e293b] rounded-lg p-2">
+                                        <div className="bg-gray-800 rounded-lg p-2">
                                             <div className="flex items-center gap-1 mb-1">
                                                 <Shield className="w-3 h-3 text-red-500" />
                                                 <span className="text-xs text-gray-400">Failed</span>
@@ -528,7 +521,7 @@ const Landing = () => {
                                     {/* Charts Row */}
                                     <div className="grid grid-cols-2 gap-3 mb-4">
                                         {/* Scan Trends */}
-                                        <div className="bg-[#1e293b] rounded-lg p-3">
+                                        <div className="bg-gray-800 rounded-lg p-3">
                                             <h4 className="text-xs font-semibold text-white mb-1">Scan Trends</h4>
                                             <p className="text-xs text-gray-500 mb-2">Last 7 days</p>
                                             <div className="h-12 flex items-end gap-1">
@@ -539,7 +532,7 @@ const Landing = () => {
                                         </div>
 
                                         {/* Vulnerability Distribution */}
-                                        <div className="bg-[#1e293b] rounded-lg p-3">
+                                        <div className="bg-gray-800 rounded-lg p-3">
                                             <div className="flex items-center justify-between mb-2">
                                                 <h4 className="text-xs font-semibold text-white">Vulnerability Distribution</h4>
                                                 <span className="text-xs bg-gray-800 px-1.5 py-0.5 rounded text-gray-400">946</span>
@@ -559,7 +552,7 @@ const Landing = () => {
                                     </div>
 
                                     {/* Recent Scans Table */}
-                                    <div className="bg-[#1e293b] rounded-lg p-3">
+                                    <div className="bg-gray-800 rounded-lg p-3">
                                         <div className="flex items-center justify-between mb-3">
                                             <div>
                                                 <h4 className="text-xs font-semibold text-white">Recent Scans</h4>
@@ -615,7 +608,7 @@ const Landing = () => {
                         className="text-center mb-16"
                     >
                         <h2 className="text-4xl md:text-5xl font-bold mb-4">
-                            Built For <span className="bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent">Every Team</span>
+                            Built For <span className="text-gradient-brand">Every Team</span>
                         </h2>
                         <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
                             Trusted by security professionals across industries
@@ -624,10 +617,10 @@ const Landing = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {[
-                            { icon: Shield, title: 'Security Teams', description: 'Comprehensive vulnerability assessments', gradient: 'from-blue-500 to-cyan-500' },
-                            { icon: Users, title: 'Pen Testers', description: 'Automated reconnaissance and scanning', gradient: 'from-purple-500 to-pink-500' },
-                            { icon: ServerCog, title: 'Enterprises', description: 'Scale security across infrastructure', gradient: 'from-green-500 to-emerald-500' },
-                            { icon: Code2, title: 'DevSecOps', description: 'Integrate security into CI/CD', gradient: 'from-orange-500 to-red-500' }
+                            { icon: Shield, title: 'Security Teams', description: 'Comprehensive vulnerability assessments', gradient: 'from-blue-500 to-cyan-300' },
+                            { icon: Users, title: 'Pen Testers', description: 'Automated reconnaissance and scanning', gradient: 'from-cyan-300 to-blue-500' },
+                            { icon: ServerCog, title: 'Enterprises', description: 'Scale security across infrastructure', gradient: 'from-blue-600 to-blue-900' },
+                            { icon: Code2, title: 'DevSecOps', description: 'Integrate security into CI/CD', gradient: 'from-red-500 to-red-700' }
                         ].map((useCase, index) => (
                             <motion.div
                                 key={index}
@@ -658,7 +651,7 @@ const Landing = () => {
             </section>
 
             {/* Benefits/Comparison Section */}
-            <section className="py-20 px-6 bg-white/50 dark:bg-gray-900/30 backdrop-blur-sm">
+            <section className="py-20 px-6 bg-blue-50/70 dark:bg-gray-900/30 backdrop-blur-sm">
                 <div className="max-w-6xl mx-auto">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -668,7 +661,7 @@ const Landing = () => {
                         className="text-center mb-16"
                     >
                         <h2 className="text-4xl md:text-5xl font-bold mb-4">
-                           Why Choose <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Scout?</span>
+                           Why Choose <span className="text-gradient-brand">Scout?</span>
                         </h2>
                         <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
                             The smart alternative to manual security testing
@@ -773,7 +766,7 @@ const Landing = () => {
                                 className="text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6"
                             >
                                 <metric.icon className="w-8 h-8 text-blue-600 dark:text-blue-500 mx-auto mb-3" />
-                                <div className="text-3xl font-black bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                                <div className="text-3xl font-black text-gradient-brand mb-2">
                                     {metric.value}
                                 </div>
                                 <div className="text-sm text-gray-600 dark:text-gray-400">{metric.label}</div>
@@ -794,7 +787,7 @@ const Landing = () => {
                         className="text-center mb-12"
                     >
                         <h2 className="text-4xl md:text-5xl font-bold mb-4">
-                            Powered By <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Industry Leaders</span>
+                            Powered By <span className="text-gradient-brand">Industry Leaders</span>
                         </h2>
                         <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
                             15+ battle-tested security tools integrated seamlessly
@@ -828,7 +821,7 @@ const Landing = () => {
                         className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-3xl p-1"
                     >
                         <div className="bg-white dark:bg-gray-900 rounded-[22px] p-10 text-center">
-                            <h3 className="text-3xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            <h3 className="text-3xl font-bold mb-4 text-gradient-brand">
                                 Complete Scan Workflow
                             </h3>
                             <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
@@ -868,7 +861,7 @@ const Landing = () => {
                         className="text-center mb-16"
                     >
                         <h2 className="text-4xl md:text-5xl font-bold mb-4">
-                            Frequently <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Asked Questions</span>
+                            Frequently <span className="text-gradient-brand">Asked Questions</span>
                         </h2>
                         <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
                             Everything you need to know about Scout
@@ -953,7 +946,7 @@ const Landing = () => {
                         <p className="text-gray-600 dark:text-gray-400 mb-4">Still have questions?</p>
                         <button
                             onClick={handleGetStarted}
-                            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg shadow-blue-500/30 transition-all"
+                            className="btn-cta px-6 py-3 font-semibold rounded-lg"
                         >
                             Get Started & Explore
                         </button>
@@ -963,7 +956,7 @@ const Landing = () => {
 
             {/* CTA Section */}
             <section className="relative py-24 px-6 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 opacity-90"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-red-600 via-red-700 to-blue-900 opacity-95"></div>
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
@@ -972,14 +965,14 @@ const Landing = () => {
                     className="max-w-4xl mx-auto text-center text-white relative z-10"
                 >
                     <h2 className="text-4xl md:text-5xl font-black mb-6">Ready to Fortify Your Security?</h2>
-                    <p className="text-blue-100 text-xl mb-10 max-w-2xl mx-auto">
+                    <p className="text-red-100 text-xl mb-10 max-w-2xl mx-auto">
                         Join security professionals using Scout to discover vulnerabilities before attackers do
                     </p>
                     <motion.button
-                        whileHover={{ scale: 1.05, boxShadow: "0 30px 60px rgba(0, 0, 0, 0.3)" }}
+                        whileHover={{ scale: 1.05, boxShadow: `0 30px 60px ${effect.shadow}` }}
                         whileTap={{ scale: 0.95 }}
                         onClick={handleGetStarted}
-                        className="px-10 py-5 bg-white text-blue-600 font-bold text-lg rounded-xl hover:bg-gray-100 shadow-2xl transition-all inline-flex items-center gap-3"
+                        className="px-10 py-5 bg-white text-red-600 font-bold text-lg rounded-xl hover:bg-gray-100 shadow-2xl transition-all inline-flex items-center gap-3"
                     >
                         <Zap className="w-6 h-6 fill-current" />
                         Get Started for Free
@@ -996,7 +989,7 @@ const Landing = () => {
                             <div className="p-2 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl">
                                 <Shield className="w-5 h-5 text-white fill-current" />
                             </div>
-                            <span className="font-bold text-lg bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Scout</span>
+                            <span className="font-bold text-lg text-gradient-brand">Scout</span>
                         </div>
                         <p className="text-sm text-gray-500">
                             © 2025 Scout. Professional Security Scanning Platform.
@@ -1016,7 +1009,7 @@ const Landing = () => {
                     animation: gradient 3s ease infinite;
                 }
             `}</style>
-            </div>{/* End Main Content Wrapper */}
+            </div>{/* End Scrollable Content */}
         </div>
     );
 };

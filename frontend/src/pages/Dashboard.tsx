@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import api from '../api/axios';
 import { useSSE } from '../context/SSEContext';
+import { status, severity } from '../theme/palette';
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -129,9 +130,9 @@ const Dashboard = () => {
                     ))}
                     
                     {/* Lines */}
-                    <polyline points={pointsTotal} fill="none" stroke="#3B82F6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                    <polyline points={pointsCompleted} fill="none" stroke="#10B981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                    <polyline points={pointsFailed} fill="none" stroke="#EF4444" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    <polyline points={pointsTotal} fill="none" stroke={status.info} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    <polyline points={pointsCompleted} fill="none" stroke={status.success} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    <polyline points={pointsFailed} fill="none" stroke={status.danger} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
 
                     {/* Hover Line */}
                     {hoveredIndex !== null && (
@@ -158,25 +159,25 @@ const Dashboard = () => {
                             <g key={i}>
                                 <circle 
                                     cx={x} cy={yTotal} 
-                                    r={isHovered ? "6" : "4"} 
-                                    fill="#3B82F6" 
-                                    stroke="#fff" 
+                                    r={isHovered ? "6" : "4"}
+                                    fill={status.info}
+                                    stroke="#fff"
                                     strokeWidth="2"
                                     className="transition-all duration-200"
                                 />
                                 <circle 
                                     cx={x} cy={yCompleted} 
-                                    r={isHovered ? "6" : "4"} 
-                                    fill="#10B981" 
-                                    stroke="#fff" 
+                                    r={isHovered ? "6" : "4"}
+                                    fill={status.success}
+                                    stroke="#fff"
                                     strokeWidth="2"
                                     className="transition-all duration-200"
                                 />
                                 <circle 
                                     cx={x} cy={yFailed} 
-                                    r={isHovered ? "6" : "4"} 
-                                    fill="#EF4444" 
-                                    stroke="#fff" 
+                                    r={isHovered ? "6" : "4"}
+                                    fill={status.danger}
+                                    stroke="#fff"
                                     strokeWidth="2"
                                     className="transition-all duration-200"
                                 />
@@ -256,10 +257,10 @@ const Dashboard = () => {
         let currentOffset = 0;
 
         const segments = [
-            { count: vulnDist.Critical, color: '#EF4444' },
-            { count: vulnDist.High, color: '#F97316' },
-            { count: vulnDist.Medium, color: '#EAB308' },
-            { count: vulnDist.Low, color: '#3B82F6' },
+            { count: vulnDist.Critical, color: severity.critical },
+            { count: vulnDist.High, color: severity.high },
+            { count: vulnDist.Medium, color: severity.medium },
+            { count: vulnDist.Low, color: severity.low },
             // Info excluded from chart to match ScanDetails
         ].filter(s => s.count > 0);
 

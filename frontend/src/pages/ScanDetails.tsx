@@ -10,6 +10,7 @@ import {
 import api from '../api/axios';
 import WebIntelligence from '../components/WebIntelligence';
 import Modal from '../components/Modal';
+import { severity } from '../theme/palette';
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -275,10 +276,10 @@ ${finding.Evidence || 'N/A'}
         let currentOffset = 0;
         
         const segments = [
-            { count: severityCounts.Critical, color: '#EF4444' }, // Red
-            { count: severityCounts.High, color: '#F97316' },     // Orange
-            { count: severityCounts.Medium, color: '#EAB308' },   // Yellow
-            { count: severityCounts.Low, color: '#3B82F6' },      // Blue
+            { count: severityCounts.Critical, color: severity.critical },
+            { count: severityCounts.High, color: severity.high },
+            { count: severityCounts.Medium, color: severity.medium },
+            { count: severityCounts.Low, color: severity.low },
         ].filter(s => s.count > 0);
 
         if (chartTotal === 0) return (

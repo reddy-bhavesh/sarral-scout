@@ -26,15 +26,17 @@
     background: transparent;
 }
 
+/* Color values come from src/theme/palette.ts via CSS custom properties
+   (see applyCssVars()), so this stylesheet holds no color literals. */
 ::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+    background: linear-gradient(135deg, var(--scrollbar-from) 0%, var(--scrollbar-to) 100%);
     border-radius: 10px;
     border: 2px solid transparent;
     background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+    background: linear-gradient(135deg, var(--scrollbar-hover-from) 0%, var(--scrollbar-hover-to) 100%);
     background-clip: padding-box;
 }
 
@@ -42,24 +44,61 @@
     background: transparent;
 }
 
+/* Track stays fully transparent in both themes. A tinted track paints a faint
+   full-height strip that shows through the fixed/translucent top bar, which
+   reads as "the scrollbar running over the header" — so we don't tint it. */
+
 /* Firefox */
 * {
     scrollbar-width: thin;
-    scrollbar-color: #3b82f6 transparent;
-}
-
-/* Dark mode specific adjustments */
-.dark ::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-}
-
-/* Light mode specific adjustments */
-::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.05);
+    scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 @layer base {
     body {
         @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-white transition-colors duration-300;
+    }
+}
+
+@layer components {
+    /* Brand gradient clip-text heading. Stays legible in both themes: dark-blue
+       stops on the cream light bg, light-cyan stops on the navy dark bg. Colors
+       are injected from src/theme/palette.ts (see applyCssVars). background-size
+       is 200% so it can also animate via `animate-gradient`. */
+    .text-gradient-brand {
+        background-image: var(--text-gradient-brand-light);
+        background-size: 200% 200%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: transparent;
+    }
+    .dark .text-gradient-brand {
+        background-image: var(--text-gradient-brand-dark);
+    }
+
+    /* Primary call-to-action: the brand red (#e63946) is reserved for CTAs and
+       alerts, so it carries all the main actions. Pair with layout utilities
+       (padding/rounded/flex) on the element itself. */
+    .btn-cta {
+        @apply bg-red-600 text-white shadow-lg shadow-red-600/30 transition-all;
+    }
+    .btn-cta:hover {
+        @apply bg-red-700 shadow-red-600/40;
+    }
+
+    /* Subtle dot-grid texture (light mode hero/background). Dot color comes
+       from src/theme/palette.ts (--dot-grid). */
+    .bg-dots {
+        background-image: radial-gradient(var(--dot-grid) 1px, transparent 1px);
+        background-size: 22px 22px;
+    }
+
+    /* Secondary brand button: cool cyan->blue gradient for non-CTA actions. */
+    .btn-brand {
+        @apply bg-gradient-to-r from-blue-600 to-blue-400 text-white shadow-lg shadow-blue-500/30 transition-all;
+    }
+    .btn-brand:hover {
+        @apply from-blue-700 to-blue-500;
     }
 }
